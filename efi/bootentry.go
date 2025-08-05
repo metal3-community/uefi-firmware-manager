@@ -24,7 +24,7 @@ func (b *BootEntry) GetMacAddr() string {
 	return ""
 }
 
-// NewBootEntry creates a new BootEntry
+// NewBootEntry creates a new BootEntry.
 func NewBootEntry(
 	data []byte,
 	attr uint32,
@@ -40,7 +40,7 @@ func NewBootEntry(
 	}
 
 	if data != nil {
-		entry.Parse(data)
+		_ = entry.Parse(data)
 	}
 	if attr != 0 {
 		entry.Attr = attr
@@ -62,7 +62,7 @@ func NewBootEntry(
 	return entry
 }
 
-// Parse parses binary data into a BootEntry
+// Parse parses binary data into a BootEntry.
 func (entry *BootEntry) Parse(data []byte) error {
 	if len(data) < 8 {
 		return fmt.Errorf("data too short to parse boot entry")
@@ -93,14 +93,14 @@ func (entry *BootEntry) Parse(data []byte) error {
 	return nil
 }
 
-// ParseBootEntry parses a boot entry from binary data
+// ParseBootEntry parses a boot entry from binary data.
 func ParseBootEntry(data []byte) (*BootEntry, error) {
 	entry := &BootEntry{}
 	err := entry.Parse(data)
 	return entry, err
 }
 
-// Bytes returns the binary representation of the BootEntry
+// Bytes returns the binary representation of the BootEntry.
 func (entry *BootEntry) Bytes() []byte {
 	var buf bytes.Buffer
 
@@ -108,29 +108,29 @@ func (entry *BootEntry) Bytes() []byte {
 	pathData := entry.DevicePath.Bytes()
 	pathSize := uint16(len(pathData))
 
-	binary.Write(&buf, binary.LittleEndian, entry.Attr)
-	binary.Write(&buf, binary.LittleEndian, pathSize)
+	_ = binary.Write(&buf, binary.LittleEndian, entry.Attr)
+	_ = binary.Write(&buf, binary.LittleEndian, pathSize)
 
 	// Write title
-	buf.Write(entry.Title.Bytes())
+	_, _ = buf.Write(entry.Title.Bytes())
 
 	// Write device path
-	buf.Write(pathData)
+	_, _ = buf.Write(pathData)
 
 	// Write optional data if present
 	if entry.OptData != nil {
-		buf.Write(entry.OptData)
+		_, _ = buf.Write(entry.OptData)
 	}
 
 	return buf.Bytes()
 }
 
-// ToBytes is an alias for Bytes to maintain compatibility with tests
+// ToBytes is an alias for Bytes to maintain compatibility with tests.
 func (entry *BootEntry) ToBytes() ([]byte, error) {
 	return entry.Bytes(), nil
 }
 
-// String returns a string representation of the BootEntry
+// String returns a string representation of the BootEntry.
 func (entry *BootEntry) String() string {
 	result := fmt.Sprintf(
 		"title=\"%s\" devpath=%s",
@@ -143,17 +143,17 @@ func (entry *BootEntry) String() string {
 	return result
 }
 
-// GetDevicePathString is an alias for DevicePath.String() to maintain compatibility with tests
+// GetDevicePathString is an alias for DevicePath.String() to maintain compatibility with tests.
 func (entry *BootEntry) GetDevicePathString() (string, error) {
 	return entry.DevicePath.String(), nil
 }
 
-// GetActiveStatus returns whether the boot entry is active
+// GetActiveStatus returns whether the boot entry is active.
 func (entry *BootEntry) GetActiveStatus() bool {
 	return (entry.Attr & LOAD_OPTION_ACTIVE) != 0
 }
 
-// SetActiveStatus sets or clears the active flag
+// SetActiveStatus sets or clears the active flag.
 func (entry *BootEntry) SetActiveStatus(active bool) {
 	if active {
 		entry.Attr |= LOAD_OPTION_ACTIVE
@@ -162,12 +162,12 @@ func (entry *BootEntry) SetActiveStatus(active bool) {
 	}
 }
 
-// GetHiddenStatus returns whether the boot entry is hidden
+// GetHiddenStatus returns whether the boot entry is hidden.
 func (entry *BootEntry) GetHiddenStatus() bool {
 	return (entry.Attr & LOAD_OPTION_HIDDEN) != 0
 }
 
-// SetHiddenStatus sets or clears the hidden flag
+// SetHiddenStatus sets or clears the hidden flag.
 func (entry *BootEntry) SetHiddenStatus(hidden bool) {
 	if hidden {
 		entry.Attr |= LOAD_OPTION_HIDDEN
@@ -176,15 +176,15 @@ func (entry *BootEntry) SetHiddenStatus(hidden bool) {
 	}
 }
 
-// GetCategory returns the category bits from the attributes
+// GetCategory returns the category bits from the attributes.
 func (entry *BootEntry) GetCategory() uint32 {
 	return entry.Attr & LOAD_OPTION_CATEGORY_MASK
 }
 
-// SetCategory sets the category bits in the attributes
+// SetCategory sets the category bits in the attributes.
 func (entry *BootEntry) SetCategory(category uint32) {
 	// Clear category bits first
-	entry.Attr &= ^uint32(LOAD_OPTION_CATEGORY_MASK)
+	entry.Attr &= ^LOAD_OPTION_CATEGORY_MASK
 	// Set new category
 	entry.Attr |= category
 }

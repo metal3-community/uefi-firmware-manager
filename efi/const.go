@@ -60,10 +60,10 @@ const (
 	NotValid = "ffffffff-ffff-ffff-ffff-ffffffffffff"
 )
 
-// For getting categories
+// For getting categories.
 const LOAD_OPTION_CATEGORY_MASK uint32 = 0x1F000000
 
-// EFI variable attributes constants
+// EFI variable attributes constants.
 const (
 	EfiAttrBootserviceAccess = EFI_VARIABLE_BOOTSERVICE_ACCESS
 	EfiAttrRuntimeAccess     = EFI_VARIABLE_RUNTIME_ACCESS

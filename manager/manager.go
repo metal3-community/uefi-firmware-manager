@@ -32,6 +32,11 @@ type FirmwareManager interface {
 	SetVariable(name string, value *efi.EfiVar) error
 	ListVariables() (map[string]*efi.EfiVar, error)
 
+	// Enhanced Variable Management with Type Conversion
+	GetVariableAsType(name string) (any, error)
+	ListVariablesWithTypes() (map[string]any, error)
+	SetVariableFromType(name string, value any) error
+
 	// Boot Configuration
 	EnablePXEBoot(enable bool) error
 	EnableHTTPBoot(enable bool) error

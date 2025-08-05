@@ -25,35 +25,6 @@ func TestGuidName(t *testing.T) {
 	}
 }
 
-func TestGUID_BytesLE(t *testing.T) {
-	type fields struct {
-		Data1 uint32
-		Data2 uint16
-		Data3 uint16
-		Data4 [8]byte
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   []byte
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := GUID{
-				Data1: tt.fields.Data1,
-				Data2: tt.fields.Data2,
-				Data3: tt.fields.Data3,
-				Data4: tt.fields.Data4,
-			}
-			if got := g.BytesLE(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GUID.BytesLE() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestParseGUID(t *testing.T) {
 	type args struct {
 		s string

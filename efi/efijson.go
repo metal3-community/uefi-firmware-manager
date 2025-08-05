@@ -125,7 +125,7 @@ func (list *EfiVarList) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(varData, &v); err != nil {
 			return err
 		}
-		(*list)[string(v.Name.String())] = &v
+		(*list)[v.Name.String()] = &v
 	}
 
 	return nil

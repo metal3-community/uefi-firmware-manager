@@ -162,7 +162,7 @@ func (m *EDK2Manager) GetBootEntries() ([]types.BootEntry, error) {
 			bootSequence, err := bootOrderVar.GetBootOrder()
 			if err == nil {
 				for i, bootID := range bootSequence {
-					if bootID == uint16(id) {
+					if bootID == id {
 						position = i
 						break
 					}
@@ -509,7 +509,7 @@ func (m *EDK2Manager) SetDefaultBootEntries() error {
 		{
 			Name: "UiApp",
 			// DevPath: "FvName(9a15aa37-d555-4a4e-b541-86391ff68164)/FvFileName(7c04a583-9e3e-4f1c-ad65-e05268d0b4d1)",
-			DevPath: "FvName(9a15aa37-d555-4a4e-b541-86391ff68164)/FvFileName(7c04a583-9e3e-4f1c-ad65-e05268d0b4d1)", // string(efi.NewDevicePath(nil).FvName("9a15aa37-d555-4a4e-b541-86391ff68164").FVFileName("462caa21-7614-4503-836e-8ab6f4662331").Bytes()),
+			DevPath: "FvName(9a15aa37-d555-4a4e-b541-86391ff68164)/FvFileName(462caa21-7614-4503-836e-8ab6f4662331)", // string(efi.NewDevicePath(nil).FvName("9a15aa37-d555-4a4e-b541-86391ff68164").FVFileName("462caa21-7614-4503-836e-8ab6f4662331").Bytes()),
 		},
 		{
 			Name:    "SD/MMC on Arasan SDHCI",
@@ -637,6 +637,184 @@ func (m *EDK2Manager) GetVariable(name string) (*efi.EfiVar, error) {
 		return nil, fmt.Errorf("variable not found: %s", name)
 	}
 	return v, nil
+}
+
+// GetVariableAsType retrieves a variable and converts it to a structured Go type based on its characteristics.
+func (m *EDK2Manager) GetVariableAsType(name string) (any, error) {
+	v, found := m.varList[name]
+	if !found {
+		return nil, fmt.Errorf("variable not found: %s", name)
+	}
+
+	// Identify the variable type based on name patterns and GUID
+	return m.identifyAndConvertVariable(name, v)
+}
+
+// identifyAndConvertVariable identifies the type of EFI variable and converts it to appropriate Go type.
+func (m *EDK2Manager) identifyAndConvertVariable(name string, v *efi.EfiVar) (any, error) {
+	guidStr := v.Guid.String()
+
+	// Check for MAC address-based IPv6 configuration (12-character hex MAC addresses)
+	if len(name) == 12 && isMACAddress(name) && guidStr == efi.EfiIp6ConfigProtocol {
+		ip6Config, err := efi.NewIp6ConfigData(v.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse IPv6 config data: %w", err)
+		}
+		return ip6Config, nil
+	}
+
+	// Network Device List
+	if name == "_NDL" {
+		deviceList, err := efi.NewNetworkDeviceList(v.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse network device list: %w", err)
+		}
+		return deviceList, nil
+	}
+
+	// DHCP6 Client ID
+	if name == "ClientId" && guidStr == efi.EfiDhcp6ServiceBindingProtocol {
+		clientId, err := efi.NewDhcp6Duid(v.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse DHCP6 client ID: %w", err)
+		}
+		return clientId, nil
+	}
+
+	// Platform Configuration
+	if name == "Setup" {
+		platformConfig := efi.NewPlatformConfig()
+		// Platform config doesn't have raw data parsing - would need specific implementation
+		return platformConfig, nil
+	}
+
+	// Console Configuration
+	if name == "ConsolePref" {
+		consoleConfig := efi.NewConsoleConfig()
+		// Console config doesn't have raw data parsing - would need specific implementation
+		return consoleConfig, nil
+	}
+
+	// Security Configuration
+	if name == "SecureBoot" || name == "VendorKeysNv" {
+		securityConfig := efi.NewSecurityConfig()
+		// Security config doesn't have raw data parsing - would need specific implementation
+		return securityConfig, nil
+	}
+
+	// Time Configuration
+	if name == "Time" || name == "Timezone" {
+		timeConfig := efi.NewTimeConfig()
+		// Time config doesn't have raw data parsing - would need specific implementation
+		return timeConfig, nil
+	}
+
+	// iSCSI Configuration
+	if name == "ISCSIBootData" {
+		// iSCSI config needs specific implementation based on data format
+		return nil, fmt.Errorf("iSCSI config parsing not yet implemented")
+	}
+
+	// Key Data (enrollment keys, certificates)
+	if name == "PK" || name == "KEK" || name == "db" || name == "dbx" {
+		keyData, err := efi.NewKeyData(v.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse key data: %w", err)
+		}
+		return keyData, nil
+	}
+
+	// Asset Tag
+	if name == "AssetTag" {
+		assetTag, err := efi.NewAssetTag(v.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse asset tag: %w", err)
+		}
+		return assetTag, nil
+	}
+
+	// Certificate Database
+	if name == "certdb" {
+		certDb, err := efi.NewCertDatabase(v.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse certificate database: %w", err)
+		}
+		return certDb, nil
+	}
+
+	// For unrecognized types, return the raw EfiVar
+	return v, nil
+}
+
+// ListVariablesWithTypes returns all variables with their converted Go types.
+func (m *EDK2Manager) ListVariablesWithTypes() (map[string]any, error) {
+	result := make(map[string]any)
+
+	for name, v := range m.varList {
+		convertedVar, err := m.identifyAndConvertVariable(name, v)
+		if err != nil {
+			// If conversion fails, store the raw variable with error info
+			result[name] = map[string]any{
+				"raw_variable":     v,
+				"conversion_error": err.Error(),
+			}
+		} else {
+			result[name] = convertedVar
+		}
+	}
+
+	return result, nil
+}
+
+// SetVariableFromType sets a variable from a structured Go type.
+func (m *EDK2Manager) SetVariableFromType(name string, value any) error {
+	// For now, only support direct EfiVar assignment since ToBytes methods aren't implemented
+	switch v := value.(type) {
+	case *efi.EfiVar:
+		// Direct EfiVar assignment
+		m.varList[name] = v
+		return nil
+	default:
+		return fmt.Errorf("unsupported variable type for direct assignment: %T. Only *efi.EfiVar is currently supported", value)
+	}
+}
+
+// getOrCreateVarForType creates a variable with appropriate GUID based on the type.
+func (m *EDK2Manager) getOrCreateVarForType(name string, value any) *efi.EfiVar {
+	var guidStr string
+
+	// Determine appropriate GUID based on variable type
+	switch value.(type) {
+	case *efi.Ip6ConfigData:
+		guidStr = efi.EfiIp6ConfigProtocol
+	case *efi.NetworkDeviceList:
+		guidStr = "e622443c-284e-4b47-a984-fd66b482dac0" // Custom network device GUID
+	case *efi.Dhcp6Duid:
+		guidStr = efi.EfiDhcp6ServiceBindingProtocol
+	case *efi.SecurityConfig:
+		guidStr = "9073e4e0-60ec-4b6e-9903-4c223c260f3c" // Security GUID
+	case *efi.ConsoleConfig:
+		guidStr = "2d2358b4-e96c-484d-b2dd-7c2edfc7d56f" // Console GUID
+	default:
+		guidStr = efi.EFI_GLOBAL_VARIABLE
+	}
+
+	return m.getOrCreateVar(name, guidStr)
+}
+
+// isMACAddress checks if a string represents a valid MAC address (12 hex characters).
+func isMACAddress(s string) bool {
+	if len(s) != 12 {
+		return false
+	}
+
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // SetVariable sets a variable.
@@ -848,7 +1026,7 @@ func (m *EDK2Manager) UpdateFirmware(firmwareData []byte) error {
 		return fmt.Errorf("failed to backup firmware: %w", err)
 	}
 
-	defer removeFile(backupPath)
+	defer func() { _ = removeFile(backupPath) }()
 
 	err := m.varStore.WriteVarStore(m.firmwarePath, m.varList)
 	if err != nil {
@@ -996,14 +1174,6 @@ func copyFile(src, dst string) error {
 		return fmt.Errorf("failed to read file %s: %w", src, err)
 	}
 	return os.WriteFile(dst, data, 0o644)
-}
-
-func readFile(path string) ([]byte, error) {
-	return os.ReadFile(path)
-}
-
-func writeFile(path string, data []byte) error {
-	return os.WriteFile(path, data, 0o644)
 }
 
 func removeFile(path string) error {

@@ -20,10 +20,16 @@ func TestNewEDK2Manager(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *EDK2Manager
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "valid firmware path",
+			args: args{
+				firmwarePath: "/Users/atkini01/src/go/uefi-firmware-manager/data/d8-3a-dd-5a-44-36/RPI_EFI.fd",
+				logger:       logr.Discard().WithName("edk2-manager"),
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -32,8 +38,8 @@ func TestNewEDK2Manager(t *testing.T) {
 				t.Errorf("NewEDK2Manager() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewEDK2Manager() = %v, want %v", got, tt.want)
+			if len(got.varList) == 0 {
+				t.Errorf("NewEDK2Manager() = %v, want %v", len(got.varList), "non-empty varList")
 			}
 		})
 	}

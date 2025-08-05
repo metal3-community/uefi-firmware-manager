@@ -47,11 +47,10 @@ func TestEdk2VarStore_GetVarList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vs := &Edk2VarStore{
-				filename: tt.fields.filename,
-				filedata: tt.fields.filedata,
-				start:    tt.fields.start,
-				end:      tt.fields.end,
-				Logger:   tt.fields.Logger,
+				data:   tt.fields.filedata,
+				start:  tt.fields.start,
+				end:    tt.fields.end,
+				Logger: tt.fields.Logger,
 			}
 			got, err := vs.GetVarList()
 			if (err != nil) != tt.wantErr {
@@ -88,11 +87,10 @@ func TestEdk2VarStore_WriteVarStore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vs := &Edk2VarStore{
-				filename: tt.fields.filename,
-				filedata: tt.fields.filedata,
-				start:    tt.fields.start,
-				end:      tt.fields.end,
-				Logger:   tt.fields.Logger,
+				data:   tt.fields.filedata,
+				start:  tt.fields.start,
+				end:    tt.fields.end,
+				Logger: tt.fields.Logger,
 			}
 			if err := vs.WriteVarStore(tt.args.filename, tt.args.varlist); (err != nil) != tt.wantErr {
 				t.Errorf("Edk2VarStore.WriteVarStore() error = %v, wantErr %v", err, tt.wantErr)
@@ -123,11 +121,10 @@ func TestEdk2VarStore_findNvData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vs := &Edk2VarStore{
-				filename: tt.fields.filename,
-				filedata: tt.fields.filedata,
-				start:    tt.fields.start,
-				end:      tt.fields.end,
-				Logger:   tt.fields.Logger,
+				data:   tt.fields.filedata,
+				start:  tt.fields.start,
+				end:    tt.fields.end,
+				Logger: tt.fields.Logger,
 			}
 			if got := vs.findNvData(tt.args.data); got != tt.want {
 				t.Errorf("Edk2VarStore.findNvData() = %v, want %v", got, tt.want)
@@ -154,13 +151,12 @@ func TestEdk2VarStore_readFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vs := &Edk2VarStore{
-				filename: tt.fields.filename,
-				filedata: tt.fields.filedata,
-				start:    tt.fields.start,
-				end:      tt.fields.end,
-				Logger:   tt.fields.Logger,
+				data:   tt.fields.filedata,
+				start:  tt.fields.start,
+				end:    tt.fields.end,
+				Logger: tt.fields.Logger,
 			}
-			if err := vs.readFile(); (err != nil) != tt.wantErr {
+			if err := vs.readFile(tt.fields.filename); (err != nil) != tt.wantErr {
 				t.Errorf("Edk2VarStore.readFile() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -185,11 +181,10 @@ func TestEdk2VarStore_parseVolume(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &Edk2VarStore{
-				filename: tt.fields.filename,
-				filedata: tt.fields.filedata,
-				start:    tt.fields.start,
-				end:      tt.fields.end,
-				Logger:   tt.fields.Logger,
+				data:   tt.fields.filedata,
+				start:  tt.fields.start,
+				end:    tt.fields.end,
+				Logger: tt.fields.Logger,
 			}
 			if err := e.parseVolume(); (err != nil) != tt.wantErr {
 				t.Errorf("Edk2VarStore.parseVolume() error = %v, wantErr %v", err, tt.wantErr)
@@ -220,11 +215,10 @@ func TestEdk2VarStore_parseVarstore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vs := &Edk2VarStore{
-				filename: tt.fields.filename,
-				filedata: tt.fields.filedata,
-				start:    tt.fields.start,
-				end:      tt.fields.end,
-				Logger:   tt.fields.Logger,
+				data:   tt.fields.filedata,
+				start:  tt.fields.start,
+				end:    tt.fields.end,
+				Logger: tt.fields.Logger,
 			}
 			if err := vs.parseVarstore(tt.args.start); (err != nil) != tt.wantErr {
 				t.Errorf("Edk2VarStore.parseVarstore() error = %v, wantErr %v", err, tt.wantErr)
@@ -255,11 +249,10 @@ func TestEdk2VarStore_bytesVar(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vs := &Edk2VarStore{
-				filename: tt.fields.filename,
-				filedata: tt.fields.filedata,
-				start:    tt.fields.start,
-				end:      tt.fields.end,
-				Logger:   tt.fields.Logger,
+				data:   tt.fields.filedata,
+				start:  tt.fields.start,
+				end:    tt.fields.end,
+				Logger: tt.fields.Logger,
 			}
 			if got := vs.bytesVar(tt.args.v); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Edk2VarStore.bytesVar() = %v, want %v", got, tt.want)
@@ -291,11 +284,10 @@ func TestEdk2VarStore_bytesVarList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vs := &Edk2VarStore{
-				filename: tt.fields.filename,
-				filedata: tt.fields.filedata,
-				start:    tt.fields.start,
-				end:      tt.fields.end,
-				Logger:   tt.fields.Logger,
+				data:   tt.fields.filedata,
+				start:  tt.fields.start,
+				end:    tt.fields.end,
+				Logger: tt.fields.Logger,
 			}
 			got, err := vs.bytesVarList(tt.args.varlist)
 			if (err != nil) != tt.wantErr {
@@ -332,11 +324,10 @@ func TestEdk2VarStore_bytesVarStore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			vs := &Edk2VarStore{
-				filename: tt.fields.filename,
-				filedata: tt.fields.filedata,
-				start:    tt.fields.start,
-				end:      tt.fields.end,
-				Logger:   tt.fields.Logger,
+				data:   tt.fields.filedata,
+				start:  tt.fields.start,
+				end:    tt.fields.end,
+				Logger: tt.fields.Logger,
 			}
 			got, err := vs.bytesVarStore(tt.args.varlist)
 			if (err != nil) != tt.wantErr {

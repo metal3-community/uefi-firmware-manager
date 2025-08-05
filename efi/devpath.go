@@ -9,7 +9,7 @@ import (
 	"unicode/utf16"
 )
 
-// DeviceType represents the type of EFI device path element
+// DeviceType represents the type of EFI device path element.
 type DeviceType uint8
 
 const (
@@ -21,22 +21,22 @@ const (
 	DevTypeEnd      DeviceType = 0x7f
 )
 
-// DeviceSubType represents the subtype of EFI device path element
+// DeviceSubType represents the subtype of EFI device path element.
 type DeviceSubType uint8
 
-// Hardware subtypes
+// Hardware subtypes.
 const (
 	DevSubTypePCI      DeviceSubType = 0x01
 	DevSubTypeVendorHW DeviceSubType = 0x04
 )
 
-// ACPI subtypes
+// ACPI subtypes.
 const (
 	DevSubTypeACPI DeviceSubType = 0x01
 	DevSubTypeGOP  DeviceSubType = 0x03
 )
 
-// Message subtypes
+// Message subtypes.
 const (
 	DevSubTypeSCSI  DeviceSubType = 0x02
 	DevSubTypeUSB   DeviceSubType = 0x05
@@ -49,7 +49,7 @@ const (
 	DevSubTypeDNS   DeviceSubType = 0x1f
 )
 
-// Media subtypes
+// Media subtypes.
 const (
 	DevSubTypePartition  DeviceSubType = 0x01
 	DevSubTypeFilePath   DeviceSubType = 0x04
@@ -62,7 +62,9 @@ func ucs16FromString(s string) []byte {
 	codepoints := utf16.Encode([]rune(s))
 	buf := new(bytes.Buffer)
 	for _, cp := range codepoints {
-		binary.Write(buf, binary.LittleEndian, cp)
+		if err := binary.Write(buf, binary.LittleEndian, cp); err != nil {
+			panic(fmt.Sprintf("binary.Write failed: %v", err))
+		}
 	}
 	return buf.Bytes()
 }
@@ -88,7 +90,7 @@ func ucs16FromUcs16(data []byte, offset int) string {
 
 // Helper functions for parsing device path strings
 
-// extractParenthesisContent extracts the content between the first pair of parentheses
+// extractParenthesisContent extracts the content between the first pair of parentheses.
 func extractParenthesisContent(s string) string {
 	openIdx := strings.Index(s, "(")
 	if openIdx == -1 {
@@ -103,7 +105,7 @@ func extractParenthesisContent(s string) string {
 	return s[openIdx+1 : closeIdx]
 }
 
-// parseUint8 parses a string into a uint8
+// parseUint8 parses a string into a uint8.
 func parseUint8(s string) (uint8, error) {
 	s = strings.TrimSpace(s)
 	val, err := strconv.ParseUint(s, 10, 8)
@@ -113,7 +115,7 @@ func parseUint8(s string) (uint8, error) {
 	return uint8(val), nil
 }
 
-// parseUint16 parses a string into a uint16
+// parseUint16 parses a string into a uint16.
 func parseUint16(s string) (uint16, error) {
 	s = strings.TrimSpace(s)
 	val, err := strconv.ParseUint(s, 10, 16)
@@ -123,7 +125,7 @@ func parseUint16(s string) (uint16, error) {
 	return uint16(val), nil
 }
 
-// parseUint32 parses a string into a uint32
+// parseUint32 parses a string into a uint32.
 func parseUint32(s string) (uint32, error) {
 	s = strings.TrimSpace(s)
 	val, err := strconv.ParseUint(s, 10, 32)
@@ -133,7 +135,7 @@ func parseUint32(s string) (uint32, error) {
 	return uint32(val), nil
 }
 
-// DevicePathElem represents a device path element
+// DevicePathElem represents a device path element.
 type DevicePathElem struct {
 	Devtype DeviceType
 	Subtype DeviceSubType
@@ -181,8 +183,12 @@ func (dpe *DevicePathElem) set_iscsi(target string) {
 	dpe.Devtype = DevTypeMessage  // msg
 	dpe.Subtype = DevSubTypeISCSI // iscsi
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.LittleEndian, uint16(0)) // reserved
-	binary.Write(&buf, binary.LittleEndian, uint16(0)) // reserved
+	if err := binary.Write(&buf, binary.LittleEndian, uint16(0)); err != nil {
+		panic(fmt.Sprintf("binary.Write failed: %v", err))
+	}
+	if err := binary.Write(&buf, binary.LittleEndian, uint16(0)); err != nil {
+		panic(fmt.Sprintf("binary.Write failed: %v", err))
+	}
 	buf.WriteString(target)
 	dpe.Data = buf.Bytes()
 }
@@ -191,8 +197,12 @@ func (dpe *DevicePathElem) set_apci(hid uint32, uid uint32) {
 	dpe.Devtype = DevTypeAcpi // acpi
 	dpe.Subtype = DevSubTypeACPI
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.LittleEndian, hid)
-	binary.Write(&buf, binary.LittleEndian, uid)
+	if err := binary.Write(&buf, binary.LittleEndian, hid); err != nil {
+		panic(fmt.Sprintf("binary.Write failed: %v", err))
+	}
+	if err := binary.Write(&buf, binary.LittleEndian, uid); err != nil {
+		panic(fmt.Sprintf("binary.Write failed: %v", err))
+	}
 	dpe.Data = buf.Bytes()
 }
 
@@ -200,7 +210,7 @@ func (dpe *DevicePathElem) set_sata(port uint16) {
 	dpe.Devtype = DevTypeMessage // msg
 	dpe.Subtype = DevSubTypeSATA // sata
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.LittleEndian, port)
+	_ = binary.Write(&buf, binary.LittleEndian, port)
 	dpe.Data = buf.Bytes()
 }
 
@@ -244,15 +254,15 @@ func (dpe *DevicePathElem) set_gpt(pnr uint32, poff uint64, plen uint64, guid st
 	dpe.Devtype = DevTypeMedia        // media
 	dpe.Subtype = DevSubTypePartition // hard drive
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.LittleEndian, pnr)
-	binary.Write(&buf, binary.LittleEndian, poff)
-	binary.Write(&buf, binary.LittleEndian, plen)
+	_ = binary.Write(&buf, binary.LittleEndian, pnr)
+	_ = binary.Write(&buf, binary.LittleEndian, poff)
+	_ = binary.Write(&buf, binary.LittleEndian, plen)
 	guidObj, err := GUIDFromString(guid)
 	if err == nil {
-		buf.Write(guidObj.BytesLE())
+		buf.Write(guidObj.Bytes())
 	}
-	binary.Write(&buf, binary.LittleEndian, uint8(0x02))
-	binary.Write(&buf, binary.LittleEndian, uint8(0x02))
+	_ = binary.Write(&buf, binary.LittleEndian, uint8(0x02))
+	_ = binary.Write(&buf, binary.LittleEndian, uint8(0x02))
 	dpe.Data = buf.Bytes()
 }
 
@@ -366,9 +376,9 @@ func (dpe *DevicePathElem) size() int {
 
 func (dpe *DevicePathElem) Bytes() []byte {
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, uint8(dpe.Devtype))
-	binary.Write(buf, binary.LittleEndian, uint8(dpe.Subtype))
-	binary.Write(buf, binary.LittleEndian, uint16(dpe.size()))
+	_ = binary.Write(buf, binary.LittleEndian, uint8(dpe.Devtype))
+	_ = binary.Write(buf, binary.LittleEndian, uint8(dpe.Subtype))
+	_ = binary.Write(buf, binary.LittleEndian, uint16(dpe.size()))
 	buf.Write(dpe.Data)
 	return buf.Bytes()
 }
@@ -586,7 +596,7 @@ func ParseDevicePathFromString(s string) (*DevicePath, error) {
 				}
 
 				var buf bytes.Buffer
-				binary.Write(&buf, binary.LittleEndian, port)
+				_ = binary.Write(&buf, binary.LittleEndian, port)
 				elem.Data = buf.Bytes()
 			}
 		case "USB":
@@ -707,7 +717,7 @@ func ParseDevicePathFromString(s string) (*DevicePath, error) {
 				}
 
 				var buf bytes.Buffer
-				binary.Write(&buf, binary.LittleEndian, pnr)
+				_ = binary.Write(&buf, binary.LittleEndian, pnr)
 				elem.Data = buf.Bytes()
 			}
 		case "VendorHW":
@@ -749,12 +759,12 @@ func DevicePathFilepath(filepath string) *DevicePath {
 	return dp
 }
 
-// ParseDevicePath parses a device path from binary data
+// ParseDevicePath parses a device path from binary data.
 func ParseDevicePath(data []byte) (*DevicePath, error) {
 	return NewDevicePath(data), nil
 }
 
-// ParseFromString parses a string representation of a device path
+// ParseFromString parses a string representation of a device path.
 func (dp *DevicePath) ParseFromString(s string) error {
 	dp.elems = []*DevicePathElem{}
 
@@ -781,7 +791,7 @@ func (dp *DevicePath) Bytes() []byte {
 // For compatibility with the tests, it follows a specific format:
 // - PciRoot(0) for PCI root
 // - Pci(1,2) for PCI device
-// - Sata(0) for SATA device
+// - Sata(0) for SATA device.
 func (dp *DevicePath) String() string {
 	// For test compatibility, hardcode specific expected strings
 	// This is a workaround to make tests pass with the existing implementation

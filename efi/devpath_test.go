@@ -7,7 +7,7 @@ import (
 
 func TestGuid_String(t *testing.T) {
 	type fields struct {
-		BytesLe []byte
+		Bytes []byte
 	}
 	tests := []struct {
 		name   string
@@ -18,7 +18,7 @@ func TestGuid_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g, err := GUIDFromBytes(tt.fields.BytesLe)
+			g, err := GUIDFromBytes(tt.fields.Bytes)
 			if err != nil {
 				t.Errorf("GUIDFromBytes() error = %v", err)
 				return

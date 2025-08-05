@@ -65,7 +65,11 @@ func FileExists(path string) bool {
 	return err == nil
 }
 
-// CopyFirmwareFile copies a firmware file to the specified destination.
-func CopyFirmwareFile(src, dst string) error {
-	return CopyFile(src, dst)
+// CopyFile copies a firmware file to the specified destination.
+func CopyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0o644)
 }

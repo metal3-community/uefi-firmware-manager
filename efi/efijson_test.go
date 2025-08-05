@@ -1,6 +1,7 @@
 package efi
 
 import (
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -188,7 +189,7 @@ func TestEfiVar_UnmarshalJSON(t *testing.T) {
 
 func TestEfiVarList_UnmarshalJSON(t *testing.T) {
 	type args struct {
-		data []byte
+		testfile string
 	}
 	tests := []struct {
 		name    string
@@ -196,11 +197,32 @@ func TestEfiVarList_UnmarshalJSON(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "UnmarshalEfiVarList",
+			list: &EfiVarList{},
+			args: args{
+				testfile: "test/fw-test.json",
+			},
+			wantErr: false,
+		},
+		{
+			name: "UnmarshalEfiVarList 2",
+			list: &EfiVarList{},
+			args: args{
+				testfile: "test/fw-test-2.json",
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.list.UnmarshalJSON(tt.args.data); (err != nil) != tt.wantErr {
+			data, err := os.ReadFile(tt.args.testfile)
+			if err != nil {
+				t.Errorf("os.ReadFile() error = %v", err)
+				return
+			}
+			err = tt.list.UnmarshalJSON(data)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("EfiVarList.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

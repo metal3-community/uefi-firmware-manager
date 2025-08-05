@@ -16,15 +16,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// MockFirmwareManager is a mock implementation of the FirmwareManager interface
+// MockFirmwareManager is a mock implementation of the FirmwareManager interface.
 type MockFirmwareManager struct {
 	mock.Mock
 }
 
-// Implement all the required methods of the FirmwareManager interface
+// Implement all the required methods of the FirmwareManager interface.
 func (m *MockFirmwareManager) GetBootOrder() ([]string, error) {
 	args := m.Called()
-	return args.Get(0).([]string), args.Error(1)
+	v, ok := args.Get(0).([]string)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return v, args.Error(1)
 }
 
 func (m *MockFirmwareManager) SetBootOrder(order []string) error {
@@ -34,7 +38,11 @@ func (m *MockFirmwareManager) SetBootOrder(order []string) error {
 
 func (m *MockFirmwareManager) GetBootEntries() ([]types.BootEntry, error) {
 	args := m.Called()
-	return args.Get(0).([]types.BootEntry), args.Error(1)
+	v, ok := args.Get(0).([]types.BootEntry)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return v, args.Error(1)
 }
 
 func (m *MockFirmwareManager) AddBootEntry(entry types.BootEntry) error {
@@ -59,12 +67,21 @@ func (m *MockFirmwareManager) SetBootNext(index uint16) error {
 
 func (m *MockFirmwareManager) GetBootNext() (uint16, error) {
 	args := m.Called()
-	return args.Get(0).(uint16), args.Error(1)
+	v, ok := args.Get(0).(uint16)
+	if !ok {
+		return 0, args.Error(1)
+	}
+	return v, args.Error(1)
 }
 
 func (m *MockFirmwareManager) GetNetworkSettings() (types.NetworkSettings, error) {
 	args := m.Called()
-	return args.Get(0).(types.NetworkSettings), args.Error(1)
+	v, ok := args.Get(0).(types.NetworkSettings)
+	if !ok {
+		var zero types.NetworkSettings
+		return zero, args.Error(1)
+	}
+	return v, args.Error(1)
 }
 
 func (m *MockFirmwareManager) SetNetworkSettings(settings types.NetworkSettings) error {
@@ -74,7 +91,11 @@ func (m *MockFirmwareManager) SetNetworkSettings(settings types.NetworkSettings)
 
 func (m *MockFirmwareManager) GetMacAddress() (net.HardwareAddr, error) {
 	args := m.Called()
-	return args.Get(0).(net.HardwareAddr), args.Error(1)
+	v, ok := args.Get(0).(net.HardwareAddr)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return v, args.Error(1)
 }
 
 func (m *MockFirmwareManager) SetMacAddress(mac net.HardwareAddr) error {
@@ -87,7 +108,11 @@ func (m *MockFirmwareManager) GetVariable(name string) (*efi.EfiVar, error) {
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(*efi.EfiVar), args.Error(1)
+	v, ok := args.Get(0).(*efi.EfiVar)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return v, args.Error(1)
 }
 
 func (m *MockFirmwareManager) SetVariable(name string, value *efi.EfiVar) error {
@@ -97,7 +122,11 @@ func (m *MockFirmwareManager) SetVariable(name string, value *efi.EfiVar) error 
 
 func (m *MockFirmwareManager) ListVariables() (map[string]*efi.EfiVar, error) {
 	args := m.Called()
-	return args.Get(0).(map[string]*efi.EfiVar), args.Error(1)
+	v, ok := args.Get(0).(map[string]*efi.EfiVar)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return v, args.Error(1)
 }
 
 func (m *MockFirmwareManager) EnablePXEBoot(enable bool) error {
@@ -122,7 +151,12 @@ func (m *MockFirmwareManager) SetConsoleConfig(consoleName string, baudRate int)
 
 func (m *MockFirmwareManager) GetSystemInfo() (types.SystemInfo, error) {
 	args := m.Called()
-	return args.Get(0).(types.SystemInfo), args.Error(1)
+	v, ok := args.Get(0).(types.SystemInfo)
+	if !ok {
+		var zero types.SystemInfo
+		return zero, args.Error(1)
+	}
+	return v, args.Error(1)
 }
 
 func (m *MockFirmwareManager) UpdateFirmware(firmwareData []byte) error {
@@ -150,12 +184,32 @@ func (m *MockFirmwareManager) ResetToDefaults() error {
 	return args.Error(0)
 }
 
+// Enhanced Variable Management with Type Conversion methods.
+func (m *MockFirmwareManager) GetVariableAsType(name string) (any, error) {
+	args := m.Called(name)
+	return args.Get(0), args.Error(1)
+}
+
+func (m *MockFirmwareManager) ListVariablesWithTypes() (map[string]any, error) {
+	args := m.Called()
+	v, ok := args.Get(0).(map[string]any)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return v, args.Error(1)
+}
+
+func (m *MockFirmwareManager) SetVariableFromType(name string, value any) error {
+	args := m.Called(name, value)
+	return args.Error(0)
+}
+
 func TestCreateBootNetworkManager(t *testing.T) {
 	// Create a temporary file for the test
 	tmpFile, err := os.CreateTemp("", "firmware-*.bin")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Close()
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	_ = tmpFile.Close()
 
 	logger := logr.FromContextOrDiscard(t.Context()).WithName("create-boot-network-manager-test")
 
@@ -271,8 +325,8 @@ func TestFileExists(t *testing.T) {
 	// Create a temporary file for the test
 	tmpFile, err := os.CreateTemp("", "file-exists-*.txt")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
-	tmpFile.Close()
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	_ = tmpFile.Close()
 
 	// Test with existing file
 	assert.True(t, util.FileExists(tmpFile.Name()))
@@ -281,14 +335,14 @@ func TestFileExists(t *testing.T) {
 	assert.False(t, util.FileExists("/path/to/nonexistent/file"))
 }
 
-func TestCopyFirmwareFile(t *testing.T) {
+func TestCopyFile(t *testing.T) {
 	srcDir, err := os.MkdirTemp("", "firmware-src-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(srcDir)
+	defer func() { _ = os.RemoveAll(srcDir) }()
 
 	destDir, err := os.MkdirTemp("", "firmware-dest-*")
 	require.NoError(t, err)
-	defer os.RemoveAll(destDir)
+	defer func() { _ = os.RemoveAll(destDir) }()
 
 	// Create source file
 	srcFile := filepath.Join(srcDir, "firmware.bin")
@@ -298,7 +352,7 @@ func TestCopyFirmwareFile(t *testing.T) {
 
 	// Test copying
 	destFile := filepath.Join(destDir, "firmware-copy.bin")
-	err = util.CopyFirmwareFile(srcFile, destFile)
+	err = util.CopyFile(srcFile, destFile)
 	assert.NoError(t, err)
 
 	// Verify file content
@@ -307,6 +361,6 @@ func TestCopyFirmwareFile(t *testing.T) {
 	assert.Equal(t, testContent, destContent)
 
 	// Test with non-existent source
-	err = util.CopyFirmwareFile("/nonexistent/source", destFile)
+	err = util.CopyFile("/nonexistent/source", destFile)
 	assert.Error(t, err)
 }

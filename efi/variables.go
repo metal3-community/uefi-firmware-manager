@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// EFI variable attributes
+// EFI variable attributes.
 const (
 	EfiVariableNonVolatile                       uint32 = 0x00000001
 	EfiVariableBootserviceAccess                 uint32 = 0x00000002
@@ -25,7 +25,7 @@ const (
 	EfiVariableDefault = EfiVariableNonVolatile | EfiVariableBootserviceAccess
 )
 
-// Default configurations for well-known EFI variables
+// Default configurations for well-known EFI variables.
 var efivarDefaults = map[string]struct {
 	Attr uint32
 	Guid string
@@ -62,9 +62,24 @@ var (
 	asciiNames = []string{"Lang", "PlatformLang", "SbatLevel"}
 	blistNames = []string{"BootOrder", "BootNext"}
 	dpathNames = []string{"ConIn", "ConOut", "ErrOut"}
+	duidNames  = []string{"ClientId"}
+	dwordNames = []string{
+		"BootDiscoveryPolicy", "BootDiscoveryPolicyOld", "ConsolePref", "CpuClock", "CustomCpuClock",
+		"DebugEnableJTAG", "DisplayEnableSShot", "FanOnGpio", "FanTemp", "MTC", "MmcDisableMulti",
+		"MmcEnableDma", "MmcForce1Bit", "MmcForceDefaultSpeed", "MmcSdDefaultSpeedMHz", "MmcSdHighSpeedMHz",
+		"RamLimitTo3GB", "RamMoreThan3GB", "SdIsArasan", "SystemTableMode", "XhciPci", "XhciReload", "certdb", "ResetDelay",
+	}
+	wordNames = []string{"Timeout", "RtcTimeZone"}
+	byteNames = []string{
+		"DisplayEnableScaledVModes",
+		"RtcDaylight",
+		"VarErrorFlag",
+		"VendorKeysNv",
+	}
+	qwordNames = []string{"InitialAttemptOrder", "RtcEpochSeconds"}
 )
 
-// EfiVar represents an EFI variable
+// EfiVar represents an EFI variable.
 type EfiVar struct {
 	Name  *UCS16String
 	Guid  GUID
@@ -75,7 +90,7 @@ type EfiVar struct {
 	PkIdx int
 }
 
-// NewEfiVar creates a new EFI variable
+// NewEfiVar creates a new EFI variable.
 func NewEfiVar(name any, guid *string, attr uint32, data []byte, count int) (*EfiVar, error) {
 	v := &EfiVar{
 		Data:  data,
@@ -87,7 +102,7 @@ func NewEfiVar(name any, guid *string, attr uint32, data []byte, count int) (*Ef
 	case *UCS16String:
 		v.Name = n
 	case string:
-		v.Name = FromString(string(n))
+		v.Name = FromString(n)
 	case []byte:
 		v.Name = FromString(string(n))
 	default:
@@ -131,7 +146,7 @@ func NewEfiVar(name any, guid *string, attr uint32, data []byte, count int) (*Ef
 	return v, nil
 }
 
-// ParseTime parses an EFI_TIME structure
+// ParseTime parses an EFI_TIME structure.
 func (v *EfiVar) ParseTime(data []byte, offset int) error {
 	if len(data) < offset+16 {
 		return errors.New("data too short for EFI_TIME")
@@ -159,29 +174,29 @@ func (v *EfiVar) ParseTime(data []byte, offset int) error {
 	return nil
 }
 
-// BytesTime generates an EFI_TIME structure
+// BytesTime generates an EFI_TIME structure.
 func (v *EfiVar) BytesTime() []byte {
 	if v.Time == nil {
 		return bytes.Repeat([]byte{0}, 16)
 	}
 
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, uint16(v.Time.Year()))
+	_ = binary.Write(buf, binary.LittleEndian, uint16(v.Time.Year()))
 	buf.WriteByte(byte(v.Time.Month()))
 	buf.WriteByte(byte(v.Time.Day()))
 	buf.WriteByte(byte(v.Time.Hour()))
 	buf.WriteByte(byte(v.Time.Minute()))
 	buf.WriteByte(byte(v.Time.Second()))
 	buf.WriteByte(0) // pad
-	binary.Write(buf, binary.LittleEndian, uint32(v.Time.Nanosecond()/1000))
-	binary.Write(buf, binary.LittleEndian, int16(0)) // timezone
-	buf.WriteByte(0)                                 // daylight
-	buf.WriteByte(0)                                 // pad
+	_ = binary.Write(buf, binary.LittleEndian, uint32(v.Time.Nanosecond()/1000))
+	_ = binary.Write(buf, binary.LittleEndian, int16(0)) // timezone
+	buf.WriteByte(0)                                     // daylight
+	buf.WriteByte(0)                                     // pad
 
 	return buf.Bytes()
 }
 
-// updateTime updates the time field if needed
+// updateTime updates the time field if needed.
 func (v *EfiVar) updateTime(ts *time.Time) {
 	if v.Attr&EfiVariableTimeBasedAuthenticatedWriteAccess == 0 {
 		return
@@ -197,7 +212,7 @@ func (v *EfiVar) updateTime(ts *time.Time) {
 	}
 }
 
-// SetBool sets a boolean value
+// SetBool sets a boolean value.
 func (v *EfiVar) SetBool(value bool) {
 	if value {
 		v.Data = []byte{1}
@@ -226,7 +241,7 @@ func (v *EfiVar) SetHexString(value string) error {
 	return nil
 }
 
-// SetUint32 sets a 32-bit unsigned integer value
+// SetUint32 sets a 32-bit unsigned integer value.
 func (v *EfiVar) SetUint32(value uint32) {
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, value)
@@ -241,18 +256,69 @@ func (v *EfiVar) GetUint32() (uint32, error) {
 	return binary.LittleEndian.Uint32(v.Data), nil
 }
 
+// SetUint16 sets a 16-bit unsigned integer value.
+func (v *EfiVar) SetUint16(value uint16) {
+	buf := make([]byte, 2)
+	binary.LittleEndian.PutUint16(buf, value)
+	v.Data = buf
+	v.updateTime(nil)
+}
+
+func (v *EfiVar) GetUint16() (uint16, error) {
+	if len(v.Data) < 2 {
+		return 0, errors.New("data too short for uint16")
+	}
+	return binary.LittleEndian.Uint16(v.Data), nil
+}
+
+// SetUint8 sets an 8-bit unsigned integer value.
+func (v *EfiVar) SetUint8(value uint8) {
+	v.Data = []byte{value}
+	v.updateTime(nil)
+}
+
+func (v *EfiVar) GetUint8() (uint8, error) {
+	if len(v.Data) < 1 {
+		return 0, errors.New("data too short for uint8")
+	}
+	return v.Data[0], nil
+}
+
+// SetUint64 sets a 64-bit unsigned integer value.
+func (v *EfiVar) SetUint64(value uint64) {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, value)
+	v.Data = buf
+	v.updateTime(nil)
+}
+
+func (v *EfiVar) GetUint64() (uint64, error) {
+	if len(v.Data) < 8 {
+		return 0, errors.New("data too short for uint64")
+	}
+	return binary.LittleEndian.Uint64(v.Data), nil
+}
+
 func (v *EfiVar) GetBootEntry() (*BootEntry, error) {
 	return NewBootEntry(v.Data, v.Attr, nil, nil, nil), nil
 }
 
-// SetBootEntry sets a boot entry
+// GetDhcp6Duid parses the variable data as a DHCP6 DUID.
+func (v *EfiVar) GetDhcp6Duid() (*Dhcp6Duid, error) {
+	if len(v.Data) < 2 {
+		return nil, fmt.Errorf("data too short for DHCP6 DUID")
+	}
+	return NewDhcp6Duid(v.Data)
+}
+
+// SetBootEntry sets a boot entry.
 func (v *EfiVar) SetBootEntry(attr uint32, title string, path string, optdata []byte) error {
 	t := NewUCS16String(title)
 
-	p := NewDevicePath([]byte{})
+	var p *DevicePath
+	var err error
 
 	if strings.Contains(path, "(") {
-		var err error
 		p, err = ParseDevicePathFromString(path)
 		if err != nil {
 			return fmt.Errorf("failed to parse device path from string: %s", path)
@@ -275,7 +341,7 @@ func (v *EfiVar) GetBootNext() (uint16, error) {
 	return binary.LittleEndian.Uint16(v.Data), nil
 }
 
-// SetBootNext sets the BootNext variable
+// SetBootNext sets the BootNext variable.
 func (v *EfiVar) SetBootNext(index uint16) {
 	buf := make([]byte, 2)
 	binary.LittleEndian.PutUint16(buf, index)
@@ -283,7 +349,7 @@ func (v *EfiVar) SetBootNext(index uint16) {
 	v.updateTime(nil)
 }
 
-// GetBootOrder retrieves the BootOrder variable
+// GetBootOrder retrieves the BootOrder variable.
 func (v *EfiVar) GetBootOrder() ([]uint16, error) {
 	var order []uint16
 	for pos := range len(v.Data) / 2 {
@@ -293,17 +359,17 @@ func (v *EfiVar) GetBootOrder() ([]uint16, error) {
 	return order, nil
 }
 
-// SetBootOrder sets the BootOrder variable
+// SetBootOrder sets the BootOrder variable.
 func (v *EfiVar) SetBootOrder(order []uint16) {
 	buf := new(bytes.Buffer)
 	for _, item := range order {
-		binary.Write(buf, binary.LittleEndian, item)
+		_ = binary.Write(buf, binary.LittleEndian, item)
 	}
 	v.Data = buf.Bytes()
 	v.updateTime(nil)
 }
 
-// AppendBootOrder appends to the BootOrder variable
+// AppendBootOrder appends to the BootOrder variable.
 func (v *EfiVar) AppendBootOrder(index uint16) {
 	buf := make([]byte, 2)
 	binary.LittleEndian.PutUint16(buf, index)
@@ -311,7 +377,7 @@ func (v *EfiVar) AppendBootOrder(index uint16) {
 	v.updateTime(nil)
 }
 
-// SetFromFile sets the variable data from a file
+// SetFromFile sets the variable data from a file.
 func (v *EfiVar) SetFromFile(filename string) error {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -323,7 +389,7 @@ func (v *EfiVar) SetFromFile(filename string) error {
 	return nil
 }
 
-// FmtBool formats a boolean variable
+// FmtBool formats a boolean variable.
 func (v *EfiVar) FmtBool() string {
 	if len(v.Data) == 0 {
 		return "bool: invalid"
@@ -335,19 +401,51 @@ func (v *EfiVar) FmtBool() string {
 	return "bool: off"
 }
 
-// FmtAscii formats an ASCII variable
+// FmtAscii formats an ASCII variable.
 func (v *EfiVar) FmtAscii() string {
 	str := strings.ReplaceAll(strings.TrimRight(string(v.Data), "\x00"), "\n", "\\n")
 	return fmt.Sprintf("ascii: \"%s\"", str)
 }
 
-// FmtBootEntry formats a boot entry variable
+// FmtDword formats a 32-bit unsigned integer variable.
+func (v *EfiVar) FmtDword() string {
+	if val, err := v.GetUint32(); err == nil {
+		return fmt.Sprintf("dword: 0x%08x", val)
+	}
+	return "dword: invalid"
+}
+
+// FmtWord formats a 16-bit unsigned integer variable.
+func (v *EfiVar) FmtWord() string {
+	if val, err := v.GetUint16(); err == nil {
+		return fmt.Sprintf("word: 0x%04x", val)
+	}
+	return "word: invalid"
+}
+
+// FmtByte formats an 8-bit unsigned integer variable.
+func (v *EfiVar) FmtByte() string {
+	if val, err := v.GetUint8(); err == nil {
+		return fmt.Sprintf("byte: 0x%02x", val)
+	}
+	return "byte: invalid"
+}
+
+// FmtQword formats a 64-bit unsigned integer variable.
+func (v *EfiVar) FmtQword() string {
+	if val, err := v.GetUint64(); err == nil {
+		return fmt.Sprintf("qword: 0x%016x", val)
+	}
+	return "qword: invalid"
+}
+
+// FmtBootEntry formats a boot entry variable.
 func (v *EfiVar) FmtBootEntry() (string, error) {
 	entry := NewBootEntry(v.Data, 0, nil, nil, nil)
 	return fmt.Sprintf("boot entry: %s", entry), nil
 }
 
-// FmtBootList formats a boot list variable
+// FmtBootList formats a boot list variable.
 func (v *EfiVar) FmtBootList() string {
 	var bootlist []string
 	for pos := 0; pos < len(v.Data)/2; pos++ {
@@ -359,13 +457,22 @@ func (v *EfiVar) FmtBootList() string {
 	return fmt.Sprintf("boot order: %s", desc)
 }
 
-// FmtDevPath formats a device path variable
+// FmtDhcp6Duid formats a DHCP6 DUID variable.
+func (v *EfiVar) FmtDhcp6Duid() (string, error) {
+	duid, err := v.GetDhcp6Duid()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("dhcp6_duid: %s", duid), nil
+}
+
+// FmtDevPath formats a device path variable.
 func (v *EfiVar) FmtDevPath() (string, error) {
 	path := NewDevicePath(v.Data)
 	return fmt.Sprintf("devpath: %s", path), nil
 }
 
-// FmtData formats the variable data based on its name and content
+// FmtData formats the variable data based on its name and content.
 func (v *EfiVar) FmtData() (string, error) {
 	name := v.Name.String()
 
@@ -389,33 +496,54 @@ func (v *EfiVar) FmtData() (string, error) {
 		return v.FmtDevPath()
 	}
 
+	// Handle DHCP6 DUID variables
+	if slices.Contains(duidNames, name) {
+		return v.FmtDhcp6Duid()
+	}
+
+	// Handle 32-bit unsigned integer variables
+	if slices.Contains(dwordNames, name) {
+		return v.FmtDword(), nil
+	}
+
+	// Handle 16-bit unsigned integer variables
+	if slices.Contains(wordNames, name) {
+		return v.FmtWord(), nil
+	}
+
+	// Handle 8-bit unsigned integer variables
+	if slices.Contains(byteNames, name) {
+		return v.FmtByte(), nil
+	}
+
+	// Handle 64-bit unsigned integer variables
+	if slices.Contains(qwordNames, name) {
+		return v.FmtQword(), nil
+	}
+
 	// Handle boot entry variables
 	if strings.HasPrefix(name, "Boot0") {
 		return v.FmtBootEntry()
 	}
 
-	// Handle simple numeric values
+	// Handle simple numeric values by size (fallback for unknown variables)
 	if len(v.Data) == 1 || len(v.Data) == 2 || len(v.Data) == 4 || len(v.Data) == 8 {
-		typeNames := map[int]string{
-			1: "byte",
-			2: "word",
-			4: "dword",
-			8: "qword",
+		switch len(v.Data) {
+		case 1:
+			return v.FmtByte(), nil
+		case 2:
+			return v.FmtWord(), nil
+		case 4:
+			return v.FmtDword(), nil
+		case 8:
+			return v.FmtQword(), nil
 		}
-
-		typeName := typeNames[len(v.Data)]
-		d := make([]byte, len(v.Data))
-		for i := 0; i < len(v.Data); i++ {
-			d[i] = v.Data[len(v.Data)-i-1]
-		}
-
-		return fmt.Sprintf("%s: 0x%s", typeName, hex.EncodeToString(d)), nil
 	}
 
 	return "", nil
 }
 
-// String returns a string representation of the EFI variable
+// String returns a string representation of the EFI variable.
 func (v *EfiVar) String() string {
 	name := v.Name.String()
 	guid := v.Guid.String()

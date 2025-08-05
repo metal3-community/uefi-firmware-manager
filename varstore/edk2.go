@@ -14,18 +14,17 @@ import (
 )
 
 type Edk2VarStore struct {
-	filename string
-	filedata []byte
-	start    int
-	end      int
+	data  []byte
+	start int
+	end   int
 
 	Logger logr.Logger
 }
 
 func NewEdk2VarStore(filename string) *Edk2VarStore {
-	vs := &Edk2VarStore{filename: filename}
-	vs.readFile()
-	vs.parseVolume()
+	vs := &Edk2VarStore{}
+	_ = vs.readFile(filename)
+	_ = vs.parseVolume()
 	return vs
 }
 
@@ -33,30 +32,30 @@ func (vs *Edk2VarStore) GetVarList() (efi.EfiVarList, error) {
 	pos := vs.start
 	varlist := efi.EfiVarList{}
 	for pos < vs.end {
-		magic := binary.LittleEndian.Uint16(vs.filedata[pos:])
+		magic := binary.LittleEndian.Uint16(vs.data[pos:])
 		if magic != 0x55aa {
 			break
 		}
-		state := vs.filedata[pos+2]
-		attr := binary.LittleEndian.Uint32(vs.filedata[pos+4:])
-		count := binary.LittleEndian.Uint64(vs.filedata[pos+8:])
+		state := vs.data[pos+2]
+		attr := binary.LittleEndian.Uint32(vs.data[pos+4:])
+		count := binary.LittleEndian.Uint64(vs.data[pos+8:])
 
-		pk := binary.LittleEndian.Uint32(vs.filedata[pos+32:])
-		nsize := binary.LittleEndian.Uint32(vs.filedata[pos+36:])
-		dsize := binary.LittleEndian.Uint32(vs.filedata[pos+40:])
+		pk := binary.LittleEndian.Uint32(vs.data[pos+32:])
+		nsize := binary.LittleEndian.Uint32(vs.data[pos+36:])
+		dsize := binary.LittleEndian.Uint32(vs.data[pos+40:])
 
 		if state == 0x3f {
-			varName := efi.FromUCS16(vs.filedata[pos+44+16:])
-			varData := vs.filedata[uint32(pos)+44+16+nsize : uint32(pos)+44+16+nsize+dsize]
+			varName := efi.FromUCS16(vs.data[pos+44+16:])
+			varData := vs.data[uint32(pos)+44+16+nsize : uint32(pos)+44+16+nsize+dsize]
 			varItem := efi.EfiVar{
 				Name:  varName,
-				Guid:  efi.ParseBinGUID(vs.filedata, pos+44),
+				Guid:  efi.ParseBinGUID(vs.data, pos+44),
 				Attr:  attr,
 				Data:  varData,
 				Count: int(count),
 				PkIdx: int(pk),
 			}
-			varItem.ParseTime(vs.filedata, pos+16)
+			_ = varItem.ParseTime(vs.data, pos+16)
 			varlist[varItem.Name.String()] = &varItem
 		}
 
@@ -98,27 +97,27 @@ func (vs *Edk2VarStore) findNvData(data []byte) int {
 	return -1
 }
 
-func (vs *Edk2VarStore) readFile() error {
-	vs.Logger.Info("reading raw edk2 varstore from %s", vs.filename)
-	data, err := os.ReadFile(vs.filename)
+func (vs *Edk2VarStore) readFile(filename string) error {
+	vs.Logger.Info("reading raw edk2 varstore from %s", filename)
+	data, err := os.ReadFile(filename)
 	if err != nil {
-		vs.Logger.Error(err, "failed to read file", "filename", vs.filename)
+		vs.Logger.Error(err, "failed to read file", "filename", filename)
 		return err
 	}
-	vs.filedata = data
+	vs.data = data
 	return nil
 }
 
 func (e *Edk2VarStore) parseVolume() error {
-	offset := e.findNvData(e.filedata)
+	offset := e.findNvData(e.data)
 	if offset < 1 {
-		return fmt.Errorf("%s: varstore not found", e.filename)
+		return fmt.Errorf("varstore not found")
 	}
 
-	guid := efi.ParseBinGUID(e.filedata, offset+16)
+	guid := efi.ParseBinGUID(e.data, offset+16)
 
 	// Equivalent to struct.unpack_from("=QLLHHHxBLL", self.filedata, offset + 32)
-	r := bytes.NewReader(e.filedata[offset+32:])
+	r := bytes.NewReader(e.data[offset+32:])
 
 	var vlen uint64
 	var sig, attr uint32
@@ -165,13 +164,13 @@ func (e *Edk2VarStore) parseVolume() error {
 		efi.GuidName(guid), vlen, rev, blocks, blksize, blocks*blksize)
 
 	if sig != 0x4856465f {
-		err := fmt.Errorf("%s: invalid signature", e.filename)
+		err := fmt.Errorf("invalid signature: 0x%x", sig)
 		e.Logger.Error(err, "sig", sig)
 		return err
 	}
 
 	if guid.String() != efi.NvData {
-		err := fmt.Errorf("%s: not a volume", e.filename)
+		err := fmt.Errorf("not a volume: %s", guid)
 		e.Logger.Error(err, "guid", guid)
 		return err
 	}
@@ -180,22 +179,22 @@ func (e *Edk2VarStore) parseVolume() error {
 }
 
 func (vs *Edk2VarStore) parseVarstore(start int) error {
-	guid := efi.ParseBinGUID(vs.filedata, start)
-	size := binary.LittleEndian.Uint32(vs.filedata[start+16 : start+20])
-	storefmt := vs.filedata[start+20]
-	state := vs.filedata[start+21]
+	guid := efi.ParseBinGUID(vs.data, start)
+	size := binary.LittleEndian.Uint32(vs.data[start+16 : start+20])
+	storefmt := vs.data[start+20]
+	state := vs.data[start+21]
 
 	vs.Logger.Info("varstore=%s size=0x%x format=0x%x state=0x%x",
 		efi.GuidName(guid), size, storefmt, state)
 
 	if guid.String() != efi.AuthVars {
-		return fmt.Errorf("%s: unknown varstore guid", vs.filename)
+		return fmt.Errorf("unknown varstore guid: %s", guid)
 	}
 	if storefmt != 0x5a {
-		return fmt.Errorf("%s: unknown varstore format", vs.filename)
+		return fmt.Errorf("unknown varstore format: 0x%x", storefmt)
 	}
 	if state != 0xfe {
-		return fmt.Errorf("%s: unknown varstore state", vs.filename)
+		return fmt.Errorf("unknown varstore state: 0x%x", state)
 	}
 
 	vs.start = start + 16 + 12
@@ -204,29 +203,29 @@ func (vs *Edk2VarStore) parseVarstore(start int) error {
 	return nil
 }
 
-// BytesVar converts an EFI variable to its binary representation
+// BytesVar converts an EFI variable to its binary representation.
 func (vs *Edk2VarStore) bytesVar(v *efi.EfiVar) []byte {
 	// Allocate a buffer for the binary data
 	buf := new(bytes.Buffer)
 
 	// Equivalent to struct.pack("=HBxLQ", 0x55aa, 0x3f, var.attr, var.count)
-	binary.Write(buf, binary.LittleEndian, uint16(0x55aa))
-	binary.Write(buf, binary.LittleEndian, uint8(0x3f))
-	binary.Write(buf, binary.LittleEndian, uint8(0)) // padding byte (x)
-	binary.Write(buf, binary.LittleEndian, uint32(v.Attr))
-	binary.Write(buf, binary.LittleEndian, uint64(v.Count))
+	_ = binary.Write(buf, binary.LittleEndian, uint16(0x55aa))
+	_ = binary.Write(buf, binary.LittleEndian, uint8(0x3f))
+	_ = binary.Write(buf, binary.LittleEndian, uint8(0)) // padding byte (x)
+	_ = binary.Write(buf, binary.LittleEndian, v.Attr)
+	_ = binary.Write(buf, binary.LittleEndian, uint64(v.Count))
 
 	// Append time bytes
 	timeBytes := v.BytesTime()
 	buf.Write(timeBytes)
 
 	// Equivalent to struct.pack("=LLL", var.pkidx, var.name.size(), len(var.data))
-	binary.Write(buf, binary.LittleEndian, uint32(v.PkIdx))
-	binary.Write(buf, binary.LittleEndian, uint32(v.Name.Size()))
-	binary.Write(buf, binary.LittleEndian, uint32(len(v.Data)))
+	_ = binary.Write(buf, binary.LittleEndian, uint32(v.PkIdx))
+	_ = binary.Write(buf, binary.LittleEndian, uint32(v.Name.Size()))
+	_ = binary.Write(buf, binary.LittleEndian, uint32(len(v.Data)))
 
 	// Append GUID bytes in little-endian format
-	buf.Write(v.Guid.BytesLE())
+	buf.Write(v.Guid.Bytes())
 
 	// Append name bytes
 	buf.Write(v.Name.Bytes())
@@ -263,7 +262,7 @@ func (vs *Edk2VarStore) bytesVarList(varlist efi.EfiVarList) ([]byte, error) {
 }
 
 func (vs *Edk2VarStore) bytesVarStore(varlist efi.EfiVarList) ([]byte, error) {
-	blob := slices.Clone(vs.filedata[:vs.start])
+	blob := slices.Clone(vs.data[:vs.start])
 
 	// Append the variable list
 	newVarList, err := vs.bytesVarList(varlist)
@@ -276,6 +275,6 @@ func (vs *Edk2VarStore) bytesVarStore(varlist efi.EfiVarList) ([]byte, error) {
 	for len(blob) < vs.end {
 		blob = append(blob, 0xff)
 	}
-	blob = append(blob, vs.filedata[vs.end:]...)
+	blob = append(blob, vs.data[vs.end:]...)
 	return blob, nil
 }

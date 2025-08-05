@@ -5,37 +5,35 @@ import (
 	"unicode/utf16"
 )
 
-// UCS16String represents an EFI UCS-16 string
+// UCS16String represents an EFI UCS-16 string.
 type UCS16String struct {
 	data []byte
 }
 
-// NewUCS16String creates a new StringUCS16, optionally initialized with a string
-func NewUCS16String(string ...string) *UCS16String {
+// NewUCS16String creates a new StringUCS16, optionally initialized with a string.
+func NewUCS16String(st ...string) *UCS16String {
 	s := &UCS16String{
 		data: []byte{},
 	}
-	if len(string) > 0 && string[0] != "" {
-		s.ParseStr(string[0])
+	if len(st) > 0 && st[0] != "" {
+		s.ParseStr(st[0])
 	}
 	return s
 }
 
-// ParseBin sets StringUCS16 from bytes data, reads to terminating 0
+// ParseBin sets StringUCS16 from bytes data, reads to terminating 0.
 func (s *UCS16String) ParseBin(data []byte, offset int) {
 	s.data = []byte{}
 	pos := offset
 
-	for {
-		if pos+2 > len(data) || (data[pos] == 0 && data[pos+1] == 0) {
-			break
-		}
+	for pos+2 <= len(data) && (data[pos] != 0 || data[pos+1] != 0) {
+
 		s.data = append(s.data, data[pos], data[pos+1])
 		pos += 2
 	}
 }
 
-// ParseStr sets StringUCS16 from Go string
+// ParseStr sets StringUCS16 from Go string.
 func (s *UCS16String) ParseStr(str string) {
 	// Convert to UTF-16 code points
 	runes := []rune(str)
@@ -49,17 +47,17 @@ func (s *UCS16String) ParseStr(str string) {
 	}
 }
 
-// Bytes returns bytes representing StringUCS16, with terminating 0
+// Bytes returns bytes representing StringUCS16, with terminating 0.
 func (s *UCS16String) Bytes() []byte {
 	return append(s.data, 0, 0)
 }
 
-// Size returns the number of bytes returned by Bytes()
+// Size returns the number of bytes returned by Bytes().
 func (s *UCS16String) Size() int {
 	return len(s.data) + 2
 }
 
-// String converts StringUCS16 to a Go string
+// String converts StringUCS16 to a Go string.
 func (s *UCS16String) String() string {
 	// Check for empty data
 	if len(s.data) == 0 {
@@ -79,12 +77,12 @@ func (s *UCS16String) String() string {
 	return string(runes)
 }
 
-// GoString implements the fmt.GoStringer interface
+// GoString implements the fmt.GoStringer interface.
 func (s *UCS16String) GoString() string {
 	return fmt.Sprintf("UCS16String(%q)", s.String())
 }
 
-// FromUCS16 converts UCS-16 bytes to StringUCS16
+// FromUCS16 converts UCS-16 bytes to StringUCS16.
 func FromUCS16(data []byte, offset ...int) *UCS16String {
 	off := 0
 	if len(offset) > 0 {
@@ -95,17 +93,17 @@ func FromUCS16(data []byte, offset ...int) *UCS16String {
 	return obj
 }
 
-// FromString converts Go string to StringUCS16
+// FromString converts Go string to StringUCS16.
 func FromString(str string) *UCS16String {
 	return NewUCS16String(str)
 }
 
-// ToUCS16 is a convenience function that converts a string to UCS16String
+// ToUCS16 is a convenience function that converts a string to UCS16String.
 func ToUCS16(str string) *UCS16String {
 	return FromString(str)
 }
 
-// Ucs16ToString converts a UCS-16 string to a regular Go string
+// Ucs16ToString converts a UCS-16 string to a regular Go string.
 func Ucs16ToString(s *UCS16String) string {
 	if s == nil {
 		return ""

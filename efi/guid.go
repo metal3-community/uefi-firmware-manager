@@ -86,15 +86,6 @@ type GUID struct {
 	Data4 [8]byte
 }
 
-func (g GUID) BytesLE() []byte {
-	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.LittleEndian, g.Data1)
-	binary.Write(buf, binary.LittleEndian, g.Data2)
-	binary.Write(buf, binary.LittleEndian, g.Data3)
-	buf.Write(g.Data4[:])
-	return buf.Bytes()
-}
-
 // ParseGUID parses a GUID from its string representation.
 func ParseGUID(s string) (GUID, error) {
 	var guid GUID
@@ -131,7 +122,7 @@ func ParseGUID(s string) (GUID, error) {
 	}
 	guid.Data3 = uint16(data3)
 
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		val, err := strconv.ParseUint(s[16+i*2:18+i*2], 16, 8)
 		if err != nil {
 			return guid, fmt.Errorf("failed to parse Data4[%d]: %v", i, err)
@@ -179,24 +170,16 @@ func GUIDFromBytes(data []byte) (GUID, error) {
 	if len(data) < 16 {
 		return GUID{}, fmt.Errorf("data too short for GUID, need 16 bytes")
 	}
-
-	var guid GUID
-	guid.Data1 = binary.LittleEndian.Uint32(data[0:4])
-	guid.Data2 = binary.LittleEndian.Uint16(data[4:6])
-	guid.Data3 = binary.LittleEndian.Uint16(data[6:8])
-	copy(guid.Data4[:], data[8:16])
-
-	return guid, nil
+	return ParseBinGUID(data, 0), nil
 }
 
-// Bytes returns the binary representation of the GUID.
 func (g GUID) Bytes() []byte {
-	data := make([]byte, 16)
-	binary.LittleEndian.PutUint32(data[0:4], g.Data1)
-	binary.LittleEndian.PutUint16(data[4:6], g.Data2)
-	binary.LittleEndian.PutUint16(data[6:8], g.Data3)
-	copy(data[8:16], g.Data4[:])
-	return data
+	buf := new(bytes.Buffer)
+	_ = binary.Write(buf, binary.LittleEndian, g.Data1)
+	_ = binary.Write(buf, binary.LittleEndian, g.Data2)
+	_ = binary.Write(buf, binary.LittleEndian, g.Data3)
+	buf.Write(g.Data4[:])
+	return buf.Bytes()
 }
 
 // String returns the standard string representation of the GUID.
@@ -210,20 +193,10 @@ func (g GUID) String() string {
 // ParseBinGUID parses a binary GUID from data at offset.
 func ParseBinGUID(data []byte, offset int) GUID {
 	var guid GUID
-
 	guid.Data1 = binary.LittleEndian.Uint32(data[offset : offset+4])
 	guid.Data2 = binary.LittleEndian.Uint16(data[offset+4 : offset+6])
 	guid.Data3 = binary.LittleEndian.Uint16(data[offset+6 : offset+8])
-	guid.Data4 = [8]byte{
-		data[offset+8],
-		data[offset+9],
-		data[offset+10],
-		data[offset+11],
-		data[offset+12],
-		data[offset+13],
-		data[offset+14],
-		data[offset+15],
-	}
+	copy(guid.Data4[:], data[offset+8:offset+16])
 	return guid
 }
 
