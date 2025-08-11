@@ -9,10 +9,8 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/bmcpi/uefi-firmware-manager/edk2"
 	"github.com/bmcpi/uefi-firmware-manager/efi"
 	"github.com/bmcpi/uefi-firmware-manager/types"
-	"github.com/bmcpi/uefi-firmware-manager/varstore"
 	"github.com/go-logr/logr"
 )
 
@@ -172,63 +170,6 @@ func (j *JsonEDK2Manager) validateMACConsistency() error {
 	}
 
 	return nil
-}
-
-// generateFirmwareBinary creates a firmware binary from variables and base firmware.
-func (j *JsonEDK2Manager) generateFirmwareBinary(variables efi.EfiVarList) ([]byte, error) {
-	// Create a temporary file with base firmware
-	tmpFile, err := os.CreateTemp("", "firmware-*.fd")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer func() { _ = os.Remove(tmpFile.Name()) }()
-	defer func() { _ = tmpFile.Close() }()
-
-	// Write base firmware to temp file
-	if _, err := tmpFile.Write(edk2.RpiEfi); err != nil {
-		return nil, fmt.Errorf("failed to write base firmware: %w", err)
-	}
-	_ = tmpFile.Close()
-
-	// Use varstore to apply variables to the firmware
-	vs := varstore.NewEdk2VarStore(tmpFile.Name())
-	vs.Logger = j.logger
-
-	if err := vs.WriteVarStore(tmpFile.Name(), variables); err != nil {
-		return nil, fmt.Errorf("failed to write variables to firmware: %w", err)
-	}
-
-	// Read the modified firmware
-	modifiedFirmware, err := os.ReadFile(tmpFile.Name())
-	if err != nil {
-		return nil, fmt.Errorf("failed to read modified firmware: %w", err)
-	}
-
-	return modifiedFirmware, nil
-}
-
-// createTemporaryFirmware creates a temporary firmware file for operations.
-func (j *JsonEDK2Manager) createTemporaryFirmware() (string, *varstore.Edk2VarStore, error) {
-	firmware, err := j.generateFirmwareBinary(j.variables)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to generate firmware: %w", err)
-	}
-
-	tmpFile, err := os.CreateTemp("", "temp-firmware-*.fd")
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to create temp file: %w", err)
-	}
-	defer func() { _ = tmpFile.Close() }()
-
-	if _, err := tmpFile.Write(firmware); err != nil {
-		_ = os.Remove(tmpFile.Name())
-		return "", nil, fmt.Errorf("failed to write temp firmware: %w", err)
-	}
-
-	vs := varstore.NewEdk2VarStore(tmpFile.Name())
-	vs.Logger = j.logger
-
-	return tmpFile.Name(), vs, nil
 }
 
 // FirmwareManager interface implementation

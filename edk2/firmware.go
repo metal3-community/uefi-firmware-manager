@@ -6,26 +6,6 @@ import (
 
 const FirmwareFileName = "RPI_EFI.fd"
 
-const edk2Conf = `arm_64bit=1
-arm_boost=1
-enable_uart=1
-uart_2ndstage=1
-enable_gic=1
-armstub=RPI_EFI.fd
-disable_commandline_tags=1
-disable_overscan=1
-device_tree_address=0x1f0000
-device_tree_end=0x200000
-[pi4]
-dtoverlay=miniuart-bt
-dtoverlay=upstream-pi4
-[all]
-tftp_prefix=2
-`
-
-const bootConf = `tftp_prefix=2
-`
-
 // RpiEfi returns the RPI_EFI.fd file.
 //
 //go:embed RPI_EFI.fd
@@ -45,6 +25,16 @@ var Start4ElfDat []byte
 //
 //go:embed bcm2711-rpi-4-b.dtb
 var Bcm2711Rpi4BDtb []byte
+
+// Bcm2711Rpi400Dtb returns the bcm2711-rpi-400.dtb file.
+//
+//go:embed bcm2711-rpi-400.dtb
+var Bcm2711Rpi400Dtb []byte
+
+// Bcm2711RpiCm4Dtb returns the bcm2711-rpi-cm4.dtb file.
+//
+//go:embed bcm2711-rpi-cm4.dtb
+var Bcm2711RpiCm4Dtb []byte
 
 // OverlaysMiniUartBtDtbo returns the overlays/miniuart-bt.dtbo file.
 //
@@ -82,7 +72,9 @@ var FirmwareBrcmBrcmfmac43455SdioClmBlob []byte
 var FirmwareBrcmBrcmfmac43455SdioRaspberry []byte
 
 // ConfigTxt is the default configuration for the Raspberry Pi 4.
-var ConfigTxt []byte = []byte(edk2Conf)
+//
+//go:embed config.txt
+var ConfigTxt []byte
 
 // Files is the mapping to the embedded iPXE binaries.
 var Files = map[string][]byte{
@@ -90,6 +82,8 @@ var Files = map[string][]byte{
 	"fixup4.dat":                                 Fixup4Dat,
 	"start4.elf":                                 Start4ElfDat,
 	"bcm2711-rpi-4-b.dtb":                        Bcm2711Rpi4BDtb,
+	"bcm2711-rpi-400.dtb":                        Bcm2711Rpi400Dtb,
+	"bcm2711-rpi-cm4.dtb":                        Bcm2711RpiCm4Dtb,
 	"overlays/miniuart-bt.dtbo":                  OverlaysMiniUartBtDtbo,
 	"overlays/upstream-pi4.dtbo":                 OverlaysUpstreamPi4Dtbo,
 	"overlays/rpi-poe-plus.dtbo":                 OverlaysRpiPoePlusDtbo,
@@ -99,5 +93,5 @@ var Files = map[string][]byte{
 	"firmware/brcm/brcmfmac43455-sdio.Raspberry": FirmwareBrcmBrcmfmac43455SdioRaspberry,
 	"config.txt":                                 ConfigTxt,
 	"cmdline.txt":                                []byte(""),
-	"bootcfg.txt":                                []byte(bootConf),
+	"bootcfg.txt":                                []byte(""),
 }

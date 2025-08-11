@@ -31,6 +31,20 @@ func (m *MockFirmwareManager) GetBootOrder() ([]string, error) {
 	return v, args.Error(1)
 }
 
+func (m *MockFirmwareManager) GetBootLast() (*types.BootEntry, error) {
+	args := m.Called()
+	v, ok := args.Get(0).(*types.BootEntry)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return v, args.Error(1)
+}
+
+func (m *MockFirmwareManager) SetBootLast(entry types.BootEntry) error {
+	args := m.Called(entry)
+	return args.Error(0)
+}
+
 func (m *MockFirmwareManager) SetBootOrder(order []string) error {
 	args := m.Called(order)
 	return args.Error(0)

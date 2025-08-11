@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -92,6 +93,52 @@ func (m *EDK2Manager) GetBootOrder() ([]string, error) {
 
 func (m *EDK2Manager) SetBootNext(index uint16) error {
 	return m.varList.SetBootNext(index)
+}
+
+func (m *EDK2Manager) SetBootLast(entry types.BootEntry) error {
+	bootEntryName := "Boot0099"
+	// Create or update the boot entry variable
+	bootEntryVar := &efi.EfiVar{
+		Name: efi.NewUCS16String(bootEntryName),
+		Guid: efi.StringToGUID(efi.EFI_GLOBAL_VARIABLE),
+		Attr: efi.EFI_VARIABLE_NON_VOLATILE | efi.EFI_VARIABLE_BOOTSERVICE_ACCESS | efi.EFI_VARIABLE_RUNTIME_ACCESS,
+	}
+	optData := []byte{}
+	if len(entry.OptData) != 0 {
+		odata, err := hex.DecodeString(entry.OptData)
+		if err != nil && entry.OptData != "" {
+			return fmt.Errorf("invalid optional data format: %w", err)
+		}
+		optData = odata
+	}
+
+	// Set the boot entry with the specified title and device path
+	err := bootEntryVar.SetBootEntry(1, entry.Name, entry.DevPath, optData)
+	if err != nil {
+		return fmt.Errorf("failed to set boot entry: %w", err)
+	}
+
+	// Add the entry to the variable list
+	m.varList[bootEntryName] = bootEntryVar
+
+	return nil
+}
+
+func (m *EDK2Manager) GetBootLast() (*types.BootEntry, error) {
+	if bootEntryVar, found := m.varList["Boot0099"]; found {
+		bootEntry, err := bootEntryVar.GetBootEntry()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get boot entry: %w", err)
+		}
+		return &types.BootEntry{
+			ID:      fmt.Sprintf("%04X", 99),
+			Name:    bootEntry.Title.String(),
+			DevPath: bootEntry.DevicePath.String(),
+			Enabled: (bootEntry.Attr & efi.LOAD_OPTION_ACTIVE) != 0,
+			OptData: hex.EncodeToString(bootEntry.OptData),
+		}, nil
+	}
+	return nil, fmt.Errorf("boot entry not found")
 }
 
 func (m *EDK2Manager) GetBootNext() (uint16, error) {
@@ -779,42 +826,11 @@ func (m *EDK2Manager) SetVariableFromType(name string, value any) error {
 	}
 }
 
-// getOrCreateVarForType creates a variable with appropriate GUID based on the type.
-func (m *EDK2Manager) getOrCreateVarForType(name string, value any) *efi.EfiVar {
-	var guidStr string
-
-	// Determine appropriate GUID based on variable type
-	switch value.(type) {
-	case *efi.Ip6ConfigData:
-		guidStr = efi.EfiIp6ConfigProtocol
-	case *efi.NetworkDeviceList:
-		guidStr = "e622443c-284e-4b47-a984-fd66b482dac0" // Custom network device GUID
-	case *efi.Dhcp6Duid:
-		guidStr = efi.EfiDhcp6ServiceBindingProtocol
-	case *efi.SecurityConfig:
-		guidStr = "9073e4e0-60ec-4b6e-9903-4c223c260f3c" // Security GUID
-	case *efi.ConsoleConfig:
-		guidStr = "2d2358b4-e96c-484d-b2dd-7c2edfc7d56f" // Console GUID
-	default:
-		guidStr = efi.EFI_GLOBAL_VARIABLE
-	}
-
-	return m.getOrCreateVar(name, guidStr)
-}
+var macRegex = regexp.MustCompile(`^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$`)
 
 // isMACAddress checks if a string represents a valid MAC address (12 hex characters).
 func isMACAddress(s string) bool {
-	if len(s) != 12 {
-		return false
-	}
-
-	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f')) {
-			return false
-		}
-	}
-
-	return true
+	return macRegex.MatchString(s)
 }
 
 // SetVariable sets a variable.

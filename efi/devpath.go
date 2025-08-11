@@ -88,23 +88,6 @@ func ucs16FromUcs16(data []byte, offset int) string {
 	return string(runes)
 }
 
-// Helper functions for parsing device path strings
-
-// extractParenthesisContent extracts the content between the first pair of parentheses.
-func extractParenthesisContent(s string) string {
-	openIdx := strings.Index(s, "(")
-	if openIdx == -1 {
-		return ""
-	}
-
-	closeIdx := strings.LastIndex(s, ")")
-	if closeIdx == -1 || closeIdx <= openIdx {
-		return ""
-	}
-
-	return s[openIdx+1 : closeIdx]
-}
-
 // parseUint8 parses a string into a uint8.
 func parseUint8(s string) (uint8, error) {
 	s = strings.TrimSpace(s)
@@ -702,10 +685,10 @@ func ParseDevicePathFromString(s string) (*DevicePath, error) {
 				elem.Subtype = DevSubTypePartition
 
 				var pnrStr string
-				contentParts := strings.Split(content, ",")
-				for _, part := range contentParts {
-					if strings.HasPrefix(part, "nr=") {
-						pnrStr = strings.TrimPrefix(part, "nr=")
+				contentParts := strings.SplitSeq(content, ",")
+				for part := range contentParts {
+					if after, ok := strings.CutPrefix(part, "nr="); ok {
+						pnrStr = after
 						break
 					}
 				}

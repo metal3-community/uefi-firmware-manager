@@ -30,7 +30,6 @@ func TestNewEdk2VarStore(t *testing.T) {
 
 func TestEdk2VarStore_GetVarList(t *testing.T) {
 	type fields struct {
-		filename string
 		filedata []byte
 		start    int
 		end      int
@@ -66,7 +65,6 @@ func TestEdk2VarStore_GetVarList(t *testing.T) {
 
 func TestEdk2VarStore_WriteVarStore(t *testing.T) {
 	type fields struct {
-		filename string
 		filedata []byte
 		start    int
 		end      int
@@ -101,7 +99,6 @@ func TestEdk2VarStore_WriteVarStore(t *testing.T) {
 
 func TestEdk2VarStore_findNvData(t *testing.T) {
 	type fields struct {
-		filename string
 		filedata []byte
 		start    int
 		end      int
@@ -165,7 +162,6 @@ func TestEdk2VarStore_readFile(t *testing.T) {
 
 func TestEdk2VarStore_parseVolume(t *testing.T) {
 	type fields struct {
-		filename string
 		filedata []byte
 		start    int
 		end      int
@@ -195,7 +191,6 @@ func TestEdk2VarStore_parseVolume(t *testing.T) {
 
 func TestEdk2VarStore_parseVarstore(t *testing.T) {
 	type fields struct {
-		filename string
 		filedata []byte
 		start    int
 		end      int
@@ -229,7 +224,6 @@ func TestEdk2VarStore_parseVarstore(t *testing.T) {
 
 func TestEdk2VarStore_bytesVar(t *testing.T) {
 	type fields struct {
-		filename string
 		filedata []byte
 		start    int
 		end      int
@@ -263,7 +257,6 @@ func TestEdk2VarStore_bytesVar(t *testing.T) {
 
 func TestEdk2VarStore_bytesVarList(t *testing.T) {
 	type fields struct {
-		filename string
 		filedata []byte
 		start    int
 		end      int
@@ -303,7 +296,6 @@ func TestEdk2VarStore_bytesVarList(t *testing.T) {
 
 func TestEdk2VarStore_bytesVarStore(t *testing.T) {
 	type fields struct {
-		filename string
 		filedata []byte
 		start    int
 		end      int
