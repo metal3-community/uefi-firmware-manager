@@ -18,6 +18,8 @@ type FirmwareManager interface {
 	UpdateBootEntry(id string, entry types.BootEntry) error
 	DeleteBootEntry(id string) error
 
+	GetVarList() (efi.EfiVarList, error)
+
 	SetBootLast(types.BootEntry) error
 	GetBootLast() (*types.BootEntry, error)
 	SetBootNext(index uint16) error

@@ -148,6 +148,15 @@ func (m *MockFirmwareManager) EnablePXEBoot(enable bool) error {
 	return args.Error(0)
 }
 
+func (m *MockFirmwareManager) GetVarList() (efi.EfiVarList, error) {
+	args := m.Called()
+	v, ok := args.Get(0).(efi.EfiVarList)
+	if !ok {
+		return nil, args.Error(1)
+	}
+	return v, args.Error(1)
+}
+
 func (m *MockFirmwareManager) EnableHTTPBoot(enable bool) error {
 	args := m.Called(enable)
 	return args.Error(0)

@@ -27,7 +27,7 @@ type EDK2Manager struct {
 }
 
 // NewEDK2Manager creates a new EDK2Manager for the given firmware file.
-func NewEDK2Manager(firmwarePath string, logger logr.Logger) (*EDK2Manager, error) {
+func NewEDK2Manager(firmwarePath string, logger logr.Logger) (FirmwareManager, error) {
 	manager := &EDK2Manager{
 		firmwarePath: firmwarePath,
 		logger:       logger.WithName("edk2-manager"),
@@ -508,13 +508,6 @@ func (m *EDK2Manager) SetNetworkSettings(settings types.NetworkSettings) error {
 
 // GetMacAddress retrieves the MAC address from the firmware.
 func (m *EDK2Manager) GetMacAddress() (net.HardwareAddr, error) {
-	// Check for dedicated MAC address variable first
-	macVar, found := m.varList["MacAddress"]
-	if found {
-		macStr := macVar.Name.String()
-		return net.ParseMAC(macStr)
-	}
-
 	// Look for MAC address in boot entries
 	entries, err := m.GetBootEntries()
 	if err != nil {
@@ -532,7 +525,7 @@ func (m *EDK2Manager) GetMacAddress() (net.HardwareAddr, error) {
 				}
 
 				// Try to parse the MAC address
-				mac, err := net.ParseMAC(strings.ReplaceAll(macStr, ":", ""))
+				mac, err := net.ParseMAC(macStr)
 				if err == nil {
 					return mac, nil
 				}
@@ -543,138 +536,47 @@ func (m *EDK2Manager) GetMacAddress() (net.HardwareAddr, error) {
 	return nil, fmt.Errorf("MAC address not found")
 }
 
-func (m *EDK2Manager) SetDefaultBootEntries() error {
-	entries, err := m.GetBootEntries()
-	if err != nil {
-		return fmt.Errorf("failed to get boot entries: %w", err)
-	}
-	if len(entries) > 0 {
-		return nil
-	}
-
-	defaultBootEntries := []types.BootEntry{
-		{
-			Name: "UiApp",
-			// DevPath: "FvName(9a15aa37-d555-4a4e-b541-86391ff68164)/FvFileName(7c04a583-9e3e-4f1c-ad65-e05268d0b4d1)",
-			DevPath: "FvName(9a15aa37-d555-4a4e-b541-86391ff68164)/FvFileName(462caa21-7614-4503-836e-8ab6f4662331)", // string(efi.NewDevicePath(nil).FvName("9a15aa37-d555-4a4e-b541-86391ff68164").FVFileName("462caa21-7614-4503-836e-8ab6f4662331").Bytes()),
-		},
-		{
-			Name:    "SD/MMC on Arasan SDHCI",
-			DevPath: "VendorHW(100c2cfa-b586-4198-9b4c-1683d195b1da)", // string(efi.NewDevicePath(nil).VendorHW(efi.StringToGUID("100c2cfa-b586-4198-9b4c-1683d195b1da")).Bytes()),
-			OptData: "4eac0881119f594d850ee21a522c59b2",
-		},
-		{
-			Name:    "UEFI SupTronics X862 202101000087",
-			DevPath: "ACPI(hid=0xa0841d0,uid=0x0)/PCI(dev=00:0)/PCI(dev=00:0)/USB(port=2)", // string(efi.NewDevicePath(nil).ACPI(1934496, 0).Bytes()), // "ACPI(hid=0xa0841d0,uid=0x0)/PCI(dev=00:0)/PCI(dev=00:0)/USB(port=2)",
-			OptData: "4eac0881119f594d850ee21a522c59b2",
-		},
-		{
-			Name:    "UEFI PXEv4 (MAC:000000000000)",
-			DevPath: "MAC()/IPv4()", // string(efi.NewDevicePath(nil).Mac().IPv4().Bytes()),
-			OptData: "4eac0881119f594d850ee21a522c59b2",
-		},
-		{
-			Name:    "UEFI PXEv6 (MAC:000000000000)",
-			DevPath: "MAC()/IPv6()", // string(efi.NewDevicePath(nil).Mac().IPv6().Bytes()),
-			OptData: "4eac0881119f594d850ee21a522c59b2",
-		},
-		{
-			Name:    "UEFI Shell",
-			DevPath: "FvName(9a15aa37-d555-4a4e-b541-86391ff68164)/FvFileName(7c04a583-9e3e-4f1c-ad65-e05268d0b4d1)",
-		},
-	}
-
-	for _, entry := range defaultBootEntries {
-		if err := m.AddBootEntry(entry); err != nil {
-			return fmt.Errorf("failed to add default boot entry: %w", err)
-		}
-	}
-	return nil
-}
-
 // SetMacAddress sets the MAC address in the firmware.
 func (m *EDK2Manager) SetMacAddress(mac net.HardwareAddr) error {
 	var err error
 
-	if mac == nil {
-		return fmt.Errorf("MAC address is nil")
-	}
+	devPath := &efi.DevicePath{}
+	devPath = devPath.Mac(mac).IPv4()
 
-	// Format MAC address without colons
-	macStr := strings.ToUpper(strings.ReplaceAll(mac.String(), ":", ""))
+	stitle := fmt.Sprintf("UEFI PXEv4 (MAC:%s)", mac.String())
 
-	clientId := m.getOrCreateVar("ClientId", efi.EfiDhcp6ServiceBindingProtocol)
-	clientId.Attr = efi.EFI_VARIABLE_NON_VOLATILE | efi.EFI_VARIABLE_BOOTSERVICE_ACCESS
-	clientIdStr := fmt.Sprintf("120000041531c000000000000000%s", strings.ToLower(macStr))
-	err = clientId.SetHexString(clientIdStr)
+	// Create the title as UCS16String
+	title := efi.NewUCS16String(stitle)
+	optData, err := hex.DecodeString("4eac0881119f594d850ee21a522c59b2")
 	if err != nil {
-		return fmt.Errorf("failed to set ClientId variable: %w", err)
+		return fmt.Errorf("failed to decode OptData: %w", err)
 	}
 
-	ndl := m.getOrCreateVar("_NDL", "e622443c-284e-4b47-a984-fd66b482dac0")
-	ndl.Attr = efi.EFI_VARIABLE_NON_VOLATILE | efi.EFI_VARIABLE_BOOTSERVICE_ACCESS
-	ndlStr := fmt.Sprintf(
-		"030b2500%s0000000000000000000000000000000000000000000000000000017fff0400",
-		strings.ToLower(macStr),
-	)
-	err = ndl.SetHexString(ndlStr)
-	if err != nil {
-		return fmt.Errorf("failed to set _NDL variable: %w", err)
+	// Create the boot entry
+	bootEntry := &efi.BootEntry{
+		Attr:       efi.LOAD_OPTION_ACTIVE, // LOAD_OPTION_ACTIVE
+		Title:      *title,
+		DevicePath: *devPath,
+		OptData:    optData,
 	}
 
-	vkNv := m.getOrCreateVar("VendorKeysNv", "9073e4e0-60ec-4b6e-9903-4c223c260f3c")
-	vkNv.Attr = uint32(35)
-	err = vkNv.SetHexString("01")
-	if err != nil {
-		return fmt.Errorf("failed to set VendorKeysNv variable: %w", err)
+	// Set the variable
+	if err := m.SetVariable("Boot0099", &efi.EfiVar{
+		Name: efi.FromString("Boot0099"),
+		Guid: efi.EFI_GLOBAL_VARIABLE_GUID,
+		Attr: efi.EfiVariableDefault | efi.EfiVariableRuntimeAccess, // attr = 7
+		Data: bootEntry.Bytes(),
+	}); err != nil {
+		return fmt.Errorf("failed to set Boot0099 variable: %w", err)
 	}
 
-	systemTableMode := m.getOrCreateVar("SystemTableMode", efi.EFI_GLOBAL_VARIABLE)
-	systemTableMode.Attr = efi.EFI_VARIABLE_NON_VOLATILE | efi.EFI_VARIABLE_BOOTSERVICE_ACCESS | efi.EFI_VARIABLE_RUNTIME_ACCESS
-	err = systemTableMode.SetHexString("00000000")
-	if err != nil {
-		return fmt.Errorf("failed to set SystemTableMode variable: %w", err)
-	}
-
-	// Set the dedicated MAC address variable
-	uniqueID := macStr[len(macStr)/2:]
-	efiIp6 := m.getOrCreateVar(macStr, efi.EfiIp6ConfigProtocol)
-	efiIp6.Attr = efi.EFI_VARIABLE_NON_VOLATILE | efi.EFI_VARIABLE_BOOTSERVICE_ACCESS
-	err = efiIp6.SetHexString(
-		fmt.Sprintf(
-			"dd7ffde3fde803003400440008000000010000003000350004000000020000002c00000004000000030000000100000000000000da3addfffe%s",
-			uniqueID,
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to set MAC address variable: %w", err)
-	}
-
-	err = m.SetDefaultBootEntries()
-	if err != nil {
-		return fmt.Errorf("failed to set default boot entries: %w", err)
-	}
-
-	// Update MAC address in boot entries
-	entries, err := m.GetBootEntries()
-	if err != nil {
-		return fmt.Errorf("failed to get boot entries: %w", err)
-	}
-
-	for _, entry := range entries {
-		if strings.Contains(entry.Name, "MAC:") {
-			// Replace the MAC address in the entry name
-			newName := replaceMAC(entry.Name, macStr)
-			if newName != entry.Name {
-				entry.Name = newName
-				if err := m.UpdateBootEntry(entry.ID, entry); err != nil {
-					return fmt.Errorf("failed to update boot entry %s: %w", entry.ID, err)
-				}
-			}
-		}
-	}
-
-	return nil
+	// Set the variable
+	return m.SetVariable("BootNext", &efi.EfiVar{
+		Name: efi.FromString("BootNext"),
+		Guid: efi.EFI_GLOBAL_VARIABLE_GUID,
+		Attr: efi.EfiVariableDefault | efi.EfiVariableRuntimeAccess, // attr = 7
+		Data: []byte{0x99, 0x00},
+	})
 }
 
 // GetVariable retrieves a variable by name.
@@ -684,6 +586,11 @@ func (m *EDK2Manager) GetVariable(name string) (*efi.EfiVar, error) {
 		return nil, fmt.Errorf("variable not found: %s", name)
 	}
 	return v, nil
+}
+
+// GetVarList retrieves the list of all variables.
+func (m *EDK2Manager) GetVarList() (efi.EfiVarList, error) {
+	return m.varList, nil
 }
 
 // GetVariableAsType retrieves a variable and converts it to a structured Go type based on its characteristics.
@@ -1160,27 +1067,6 @@ func boolToUint32(b bool) uint32 {
 		return 1
 	}
 	return 0
-}
-
-// replaceMAC replaces a MAC address in a string.
-func replaceMAC(s, newMAC string) string {
-	// Find the MAC address in the string
-	macIndex := strings.Index(s, "MAC:")
-	if macIndex < 0 {
-		return s
-	}
-
-	// Extract the MAC portion
-	macStart := macIndex + 4
-	macEnd := strings.Index(s[macStart:], ")")
-	if macEnd < 0 {
-		return s
-	}
-
-	macEnd += macStart
-
-	// Replace the MAC address
-	return s[:macStart] + newMAC + s[macEnd:]
 }
 
 // File utility functions.

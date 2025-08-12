@@ -38,8 +38,9 @@ func TestNewEDK2Manager(t *testing.T) {
 				t.Errorf("NewEDK2Manager() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if len(got.varList) == 0 {
-				t.Errorf("NewEDK2Manager() = %v, want %v", len(got.varList), "non-empty varList")
+			varList, err := got.GetVarList()
+			if len(varList) == 0 {
+				t.Errorf("NewEDK2Manager() = %v, want %v", len(varList), "non-empty varList")
 			}
 		})
 	}
