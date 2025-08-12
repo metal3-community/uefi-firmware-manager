@@ -1,6 +1,7 @@
 package efi
 
 import (
+	"net"
 	"reflect"
 	"testing"
 )
@@ -159,7 +160,7 @@ func TestDevicePathElem_set_mac(t *testing.T) {
 				Subtype: tt.fields.Subtype,
 				Data:    tt.fields.Data,
 			}
-			dpe.set_mac()
+			dpe.set_mac(net.HardwareAddr{})
 		})
 	}
 }
@@ -712,7 +713,7 @@ func TestDevicePath_Mac(t *testing.T) {
 			dp := &DevicePath{
 				elems: tt.fields.elems,
 			}
-			if got := dp.Mac(); !reflect.DeepEqual(got, tt.want) {
+			if got := dp.Mac(net.HardwareAddr{}); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("DevicePath.Mac() = %v, want %v", got, tt.want)
 			}
 		})

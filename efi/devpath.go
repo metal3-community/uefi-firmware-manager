@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -144,10 +145,18 @@ func NewDevicePathElem(data []byte) *DevicePathElem {
 	return dpe
 }
 
-func (dpe *DevicePathElem) set_mac() {
+func (dpe *DevicePathElem) set_mac(macAddr net.HardwareAddr) {
 	dpe.Devtype = DevTypeMessage // msg
 	dpe.Subtype = DevSubTypeMAC  // mac
-	dpe.Data = make([]byte, 6)   // use dhcp
+	// Create 33-byte data field: 6 bytes MAC + 27 bytes padding ending with 0x01
+	dpe.Data = make([]byte, 33)
+	// Set MAC address from parameter (default to zeros if wrong length)
+	if len(macAddr) >= 6 {
+		copy(dpe.Data[0:6], macAddr[0:6])
+	}
+	// Bytes 6-31 remain zero (padding)
+	// Set final byte to 0x01
+	dpe.Data[32] = 0x01
 }
 
 func (dpe *DevicePathElem) set_ipv4() {
@@ -416,9 +425,9 @@ func (dp *DevicePath) VendorHW(guid GUID) *DevicePath {
 	return dp
 }
 
-func (dp *DevicePath) Mac() *DevicePath {
+func (dp *DevicePath) Mac(macAddr net.HardwareAddr) *DevicePath {
 	elem := NewDevicePathElem(nil)
-	elem.set_mac()
+	elem.set_mac(macAddr)
 	dp.elems = append(dp.elems, elem)
 	return dp
 }
@@ -602,9 +611,7 @@ func ParseDevicePathFromString(s string) (*DevicePath, error) {
 			}
 		case "MAC":
 			{
-				elem.Devtype = DevTypeMessage
-				elem.Subtype = DevSubTypeMAC
-				elem.Data = make([]byte, 6) // use dhcp
+				elem.set_mac(net.HardwareAddr{}) // use default MAC (zeros)
 			}
 		case "IPv4":
 			{
