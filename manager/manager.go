@@ -24,6 +24,7 @@ type FirmwareManager interface {
 	GetBootLast() (*types.BootEntry, error)
 	SetBootNext(index uint16) error
 	GetBootNext() (uint16, error)
+	DeleteBootNext() error
 
 	// Network Management
 	GetNetworkSettings() (types.NetworkSettings, error)
@@ -34,6 +35,7 @@ type FirmwareManager interface {
 	// UEFI Variable Management
 	GetVariable(name string) (*efi.EfiVar, error)
 	SetVariable(name string, value *efi.EfiVar) error
+	DeleteVariable(name string) error
 	ListVariables() (map[string]*efi.EfiVar, error)
 
 	// Enhanced Variable Management with Type Conversion

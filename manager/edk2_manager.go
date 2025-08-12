@@ -149,6 +149,10 @@ func (m *EDK2Manager) GetBootNext() (uint16, error) {
 	return bootNextVar.GetBootNext()
 }
 
+func (m *EDK2Manager) DeleteBootNext() error {
+	return m.DeleteVariable(efi.BootNext)
+}
+
 // SetBootOrder sets the boot order from a list of entry IDs.
 func (m *EDK2Manager) SetBootOrder(order []string) error {
 	bootSequence := make([]uint16, len(order))
@@ -586,6 +590,15 @@ func (m *EDK2Manager) GetVariable(name string) (*efi.EfiVar, error) {
 		return nil, fmt.Errorf("variable not found: %s", name)
 	}
 	return v, nil
+}
+
+// DeleteVariable removes a variable by name.
+func (m *EDK2Manager) DeleteVariable(name string) error {
+	if _, found := m.varList[name]; !found {
+		return fmt.Errorf("variable not found: %s", name)
+	}
+	delete(m.varList, name)
+	return nil
 }
 
 // GetVarList retrieves the list of all variables.
