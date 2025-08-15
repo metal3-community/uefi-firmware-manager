@@ -1,8 +1,10 @@
 arm_64bit=1
+arm_boost=1
 enable_uart=1
-enable_gic=1
+uart_2ndstage=1
 armstub=RPI_EFI.fd
 disable_commandline_tags=2
+disable_overscan=1
 
 [pi4]
 enable_gic=1
