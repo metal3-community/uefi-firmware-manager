@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"strings"
 	"sync"
@@ -17,8 +18,8 @@ import (
 
 var (
 	// Pre-decoded hex constant to avoid repeated parsing.
-	pxeOptData = mustDecodeHex("4eac0881119f594d850ee21a522c59b2")
-	
+	pxeOptData = efi.BmAutoCreateBootOptionGuid.Bytes()
+
 	// Pre-computed variable template for BootNext.
 	bootNextTemplate = &efi.EfiVar{
 		Name: efi.FromString("BootNext"),
@@ -26,10 +27,10 @@ var (
 		Attr: efi.EfiVariableDefault | efi.EfiVariableRuntimeAccess,
 		Data: []byte{0x99, 0x00},
 	}
-	
+
 	// Pre-computed static parts for Boot0099 variable.
 	boot0099Name = efi.FromString("Boot0099")
-	
+
 	// String builder pool for efficient string operations.
 	stringBuilderPool = sync.Pool{
 		New: func() any {
@@ -38,14 +39,14 @@ var (
 			return sb
 		},
 	}
-	
+
 	// Varstore cache to avoid repeated parsing.
 	varstoreCache struct {
 		sync.RWMutex
 		vs      *varstore.Edk2VarStore
 		varList efi.EfiVarList
 	}
-	
+
 	// MAC formatting lookup table for fast hex conversion.
 	hexTable = "0123456789ABCDEF"
 )
@@ -72,13 +73,11 @@ func (sm *SimpleFirmwareManager) GetFirmwareReader(macAddr net.HardwareAddr) (io
 
 	// Clone the variable list for this request (shallow copy)
 	requestVarList := make(efi.EfiVarList, len(varList))
-	for k, v := range varList {
-		requestVarList[k] = v
-	}
+	maps.Copy(requestVarList, varList)
 
 	// Create device path and boot entry efficiently
 	devPath := (&efi.DevicePath{}).Mac(macAddr).IPv4()
-	
+
 	// Fast MAC address formatting using optimized conversion
 	title := efi.NewUCS16String(formatMACTitle(macAddr))
 
@@ -94,7 +93,7 @@ func (sm *SimpleFirmwareManager) GetFirmwareReader(macAddr net.HardwareAddr) (io
 	requestVarList["Boot0099"] = &efi.EfiVar{
 		Name: boot0099Name,
 		Guid: efi.EFI_GLOBAL_VARIABLE_GUID,
-		Attr: efi.EfiVariableDefault | efi.EfiVariableRuntimeAccess,
+		Attr: efi.EfiVariableDefault | efi.EfiVariableRuntimeAccess, // Attr 7
 		Data: bootEntry.Bytes(),
 	}
 
@@ -141,7 +140,7 @@ func (sm *SimpleFirmwareManager) getOrCreateVarstore() (*varstore.Edk2VarStore, 
 	// Create new varstore (write lock)
 	varstoreCache.Lock()
 	defer varstoreCache.Unlock()
-	
+
 	// Double-check pattern
 	if varstoreCache.vs != nil && varstoreCache.varList != nil {
 		return varstoreCache.vs, varstoreCache.varList, nil
@@ -181,9 +180,9 @@ func formatMACTitle(macAddr net.HardwareAddr) string {
 
 	// Pre-allocate exact size: "UEFI PXEv4 (MAC:" + "XX:XX:XX:XX:XX:XX" + ")"
 	sb.Grow(32)
-	
+
 	sb.WriteString("UEFI PXEv4 (MAC:")
-	
+
 	// Direct byte-to-hex conversion for maximum speed
 	for i, b := range macAddr {
 		if i > 0 {
@@ -192,7 +191,7 @@ func formatMACTitle(macAddr net.HardwareAddr) string {
 		sb.WriteByte(hexTable[b>>4])
 		sb.WriteByte(hexTable[b&0x0F])
 	}
-	
+
 	sb.WriteByte(')')
 	return sb.String()
 }
@@ -208,21 +207,21 @@ func (fr *optimizedFirmwareReader) Read(p []byte) (n int, err error) {
 	if fr.pos >= fr.size {
 		return 0, io.EOF
 	}
-	
+
 	available := fr.size - fr.pos
 	if int64(len(p)) > available {
 		p = p[:available]
 	}
-	
+
 	// Use unsafe pointer arithmetic for maximum speed
-	n = copy(p, (*[1<<30]byte)(unsafe.Pointer(&fr.data[fr.pos]))[:len(p):len(p)])
+	n = copy(p, (*[1 << 30]byte)(unsafe.Pointer(&fr.data[fr.pos]))[:len(p):len(p)])
 	fr.pos += int64(n)
 	return n, nil
 }
 
 func (fr *optimizedFirmwareReader) Seek(offset int64, whence int) (int64, error) {
 	var newPos int64
-	
+
 	switch whence {
 	case io.SeekStart:
 		newPos = offset
@@ -233,15 +232,15 @@ func (fr *optimizedFirmwareReader) Seek(offset int64, whence int) (int64, error)
 	default:
 		return 0, fmt.Errorf("invalid whence value: %d", whence)
 	}
-	
+
 	if newPos < 0 {
 		return 0, fmt.Errorf("negative position: %d", newPos)
 	}
-	
+
 	if newPos > fr.size {
 		newPos = fr.size
 	}
-	
+
 	fr.pos = newPos
 	return newPos, nil
 }
