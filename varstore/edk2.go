@@ -28,6 +28,16 @@ func NewEdk2VarStore(filename string) *Edk2VarStore {
 	return vs
 }
 
+func New(data []byte) (*Edk2VarStore, error) {
+	vs := &Edk2VarStore{
+		data: data,
+	}
+	if err := vs.parseVolume(); err != nil {
+		return nil, err
+	}
+	return vs, nil
+}
+
 func (vs *Edk2VarStore) GetVarList() (efi.EfiVarList, error) {
 	pos := vs.start
 	varlist := efi.EfiVarList{}
@@ -63,6 +73,15 @@ func (vs *Edk2VarStore) GetVarList() (efi.EfiVarList, error) {
 		pos = (pos + 3) & ^3 // align
 	}
 	return varlist, nil
+}
+
+func (vs *Edk2VarStore) ReadBytes(varlist efi.EfiVarList) (io.Reader, error) {
+	blob, err := vs.bytesVarStore(varlist)
+	if err != nil {
+		vs.Logger.Error(err, "failed to convert varlist to bytes")
+		return nil, err
+	}
+	return bytes.NewReader(blob), nil
 }
 
 func (vs *Edk2VarStore) WriteVarStore(filename string, varlist efi.EfiVarList) error {
