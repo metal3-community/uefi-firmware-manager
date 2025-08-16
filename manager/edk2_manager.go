@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bmcpi/uefi-firmware-manager/edk2"
-	"github.com/bmcpi/uefi-firmware-manager/efi"
-	"github.com/bmcpi/uefi-firmware-manager/types"
-	"github.com/bmcpi/uefi-firmware-manager/varstore"
 	"github.com/go-logr/logr"
+	"github.com/metal3-community/uefi-firmware-manager/edk2"
+	"github.com/metal3-community/uefi-firmware-manager/efi"
+	"github.com/metal3-community/uefi-firmware-manager/types"
+	"github.com/metal3-community/uefi-firmware-manager/varstore"
 )
 
 // EDK2Manager implements the FirmwareManager interface for Raspberry Pi EDK2 firmware.

@@ -9,9 +9,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/bmcpi/uefi-firmware-manager/efi"
-	"github.com/bmcpi/uefi-firmware-manager/types"
 	"github.com/go-logr/logr"
+	"github.com/metal3-community/uefi-firmware-manager/efi"
+	"github.com/metal3-community/uefi-firmware-manager/types"
 )
 
 // JsonEDK2Manager manages UEFI firmware using JSON files organized by MAC address.

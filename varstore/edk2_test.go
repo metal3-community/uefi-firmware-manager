@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/bmcpi/uefi-firmware-manager/efi"
 	"github.com/go-logr/logr"
+	"github.com/metal3-community/uefi-firmware-manager/efi"
 )
 
 func TestNewEdk2VarStore(t *testing.T) {

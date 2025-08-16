@@ -1,7 +1,7 @@
 package varstore_test
 
 import (
-	"github.com/bmcpi/uefi-firmware-manager/efi"
+	"github.com/metal3-community/uefi-firmware-manager/efi"
 	"github.com/stretchr/testify/assert"
 )
 

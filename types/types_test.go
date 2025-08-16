@@ -3,7 +3,7 @@ package types_test
 import (
 	"testing"
 
-	"github.com/bmcpi/uefi-firmware-manager/types"
+	"github.com/metal3-community/uefi-firmware-manager/types"
 	"github.com/stretchr/testify/assert"
 )
 

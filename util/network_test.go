@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/bmcpi/uefi-firmware-manager/efi"
-	"github.com/bmcpi/uefi-firmware-manager/types"
-	"github.com/bmcpi/uefi-firmware-manager/util"
 	"github.com/go-logr/logr"
+	"github.com/metal3-community/uefi-firmware-manager/efi"
+	"github.com/metal3-community/uefi-firmware-manager/types"
+	"github.com/metal3-community/uefi-firmware-manager/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

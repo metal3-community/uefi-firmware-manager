@@ -4,8 +4,8 @@ package manager
 import (
 	"net"
 
-	"github.com/bmcpi/uefi-firmware-manager/efi"
-	"github.com/bmcpi/uefi-firmware-manager/types"
+	"github.com/metal3-community/uefi-firmware-manager/efi"
+	"github.com/metal3-community/uefi-firmware-manager/types"
 )
 
 // FirmwareManager provides methods to manipulate UEFI firmware variables.

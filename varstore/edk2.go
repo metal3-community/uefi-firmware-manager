@@ -9,8 +9,8 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/bmcpi/uefi-firmware-manager/efi"
 	"github.com/go-logr/logr"
+	"github.com/metal3-community/uefi-firmware-manager/efi"
 )
 
 type Edk2VarStore struct {

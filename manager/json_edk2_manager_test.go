@@ -4,8 +4,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/bmcpi/uefi-firmware-manager/efi"
 	"github.com/go-logr/logr"
+	"github.com/metal3-community/uefi-firmware-manager/efi"
 )
 
 func TestNewJsonEDK2Manager(t *testing.T) {

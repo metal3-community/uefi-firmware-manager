@@ -6,8 +6,8 @@ import (
 	"net"
 	"os"
 
-	"github.com/bmcpi/uefi-firmware-manager/manager"
 	"github.com/go-logr/logr"
+	"github.com/metal3-community/uefi-firmware-manager/manager"
 )
 
 // CreateBootNetworkManager creates a firmware manager configured specifically for network booting.
