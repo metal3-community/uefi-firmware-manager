@@ -17,7 +17,7 @@ This package provides firmware management functionality for the BMC Pi project.
 
 ```go
 import (
-    "github.com/bmcpi/uefi-firmware-manager/firmware"
+    "github.com/metal3-community/uefi-firmware-manager/firmware"
     "github.com/go-logr/logr"
 )
 

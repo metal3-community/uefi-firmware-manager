@@ -1,8 +1,9 @@
-module github.com/bmcpi/uefi-firmware-manager
+module github.com/metal3-community/uefi-firmware-manager
 
 go 1.24.4
 
 require (
+	github.com/bmcpi/uefi-firmware-manager v0.0.0-20250815084340-f4846fe24a50
 	github.com/go-logr/logr v1.4.3
 	github.com/stretchr/testify v1.10.0
 )
