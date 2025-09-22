@@ -79,6 +79,11 @@ func (m *MockFirmwareManager) SetBootNext(index uint16) error {
 	return args.Error(0)
 }
 
+func (m *MockFirmwareManager) DeleteBootNext() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 func (m *MockFirmwareManager) GetBootNext() (uint16, error) {
 	args := m.Called()
 	v, ok := args.Get(0).(uint16)
@@ -131,6 +136,11 @@ func (m *MockFirmwareManager) GetVariable(name string) (*efi.EfiVar, error) {
 
 func (m *MockFirmwareManager) SetVariable(name string, value *efi.EfiVar) error {
 	args := m.Called(name, value)
+	return args.Error(0)
+}
+
+func (m *MockFirmwareManager) DeleteVariable(name string) error {
+	args := m.Called(name)
 	return args.Error(0)
 }
 

@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"encoding/hex"
 	"fmt"
 	"io"
 	"maps"
@@ -243,13 +242,4 @@ func (fr *optimizedFirmwareReader) Seek(offset int64, whence int) (int64, error)
 
 	fr.pos = newPos
 	return newPos, nil
-}
-
-// mustDecodeHex decodes a hex string and panics on error.
-func mustDecodeHex(s string) []byte {
-	data, err := hex.DecodeString(s)
-	if err != nil {
-		panic(fmt.Sprintf("failed to decode hex string %q: %v", s, err))
-	}
-	return data
 }
