@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"slices"
 	"strings"
@@ -23,6 +24,26 @@ const (
 	EfiVariableAppendWrite                       uint32 = 0x00000040
 
 	EfiVariableDefault = EfiVariableNonVolatile | EfiVariableBootserviceAccess
+
+	hexTable = "0123456789ABCDEF"
+)
+
+var (
+	// Pre-decoded hex constant to avoid repeated parsing.
+	pxeOptData = BmAutoCreateBootOptionGuid.Bytes()
+
+	// Pre-computed variable template for BootNext.
+	bootNextTemplate = &EfiVar{
+		Name: FromString("BootNext"),
+		Guid: EFI_GLOBAL_VARIABLE_GUID,
+		Attr: EfiVariableDefault | EfiVariableRuntimeAccess,
+		Data: []byte{0x99, 0x00},
+	}
+
+	// Pre-computed static parts for Boot0099 variable.
+	boot0099Name = FromString("Boot0099")
+
+	// MAC formatting lookup table for fast hex conversion.
 )
 
 // Default configurations for well-known EFI variables.
@@ -144,6 +165,60 @@ func NewEfiVar(name any, guid *string, attr uint32, data []byte, count int) (*Ef
 	}
 
 	return v, nil
+}
+
+func NewPxeBootOption(mac net.HardwareAddr) (*EfiVar, error) {
+	if len(mac) != 6 {
+		return nil, fmt.Errorf("invalid MAC address length: %d", len(mac))
+	}
+
+	// Create device path and boot entry efficiently
+	devPath := (&DevicePath{}).Mac(mac).IPv4()
+
+	// Fast MAC address formatting using optimized conversion
+	title := NewUCS16String(formatMACTitle(mac))
+
+	// Create boot entry with pre-allocated data
+	bootEntry := &BootEntry{
+		Attr:       LOAD_OPTION_ACTIVE,
+		Title:      *title,
+		DevicePath: *devPath,
+		OptData:    pxeOptData, // Use pre-decoded constant
+	}
+
+	return &EfiVar{
+		Name: boot0099Name,
+		Guid: EFI_GLOBAL_VARIABLE_GUID,
+		Attr: EfiVariableDefault | EfiVariableRuntimeAccess, // Attr 7
+		Data: bootEntry.Bytes(),
+	}, nil
+}
+
+// formatMACTitle creates MAC title string with optimized formatting.
+func formatMACTitle(macAddr net.HardwareAddr) string {
+	if len(macAddr) != 6 {
+		// Fallback for non-standard MAC addresses
+		return fmt.Sprintf("UEFI PXEv4 (MAC:%s)", strings.ToUpper(macAddr.String()))
+	}
+
+	sb := &strings.Builder{}
+
+	// Pre-allocate exact size: "UEFI PXEv4 (MAC:" + "XX:XX:XX:XX:XX:XX" + ")"
+	sb.Grow(32)
+
+	sb.WriteString("UEFI PXEv4 (MAC:")
+
+	// Direct byte-to-hex conversion for maximum speed
+	for i, b := range macAddr {
+		if i > 0 {
+			sb.WriteByte(':')
+		}
+		sb.WriteByte(hexTable[b>>4])
+		sb.WriteByte(hexTable[b&0x0F])
+	}
+
+	sb.WriteByte(')')
+	return sb.String()
 }
 
 // ParseTime parses an EFI_TIME structure.

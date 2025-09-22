@@ -74,28 +74,13 @@ func (sm *SimpleFirmwareManager) GetFirmwareReader(macAddr net.HardwareAddr) (io
 	requestVarList := make(efi.EfiVarList, len(varList))
 	maps.Copy(requestVarList, varList)
 
-	// Create device path and boot entry efficiently
-	devPath := (&efi.DevicePath{}).Mac(macAddr).IPv4()
-
-	// Fast MAC address formatting using optimized conversion
-	title := efi.NewUCS16String(formatMACTitle(macAddr))
-
-	// Create boot entry with pre-allocated data
-	bootEntry := &efi.BootEntry{
-		Attr:       efi.LOAD_OPTION_ACTIVE,
-		Title:      *title,
-		DevicePath: *devPath,
-		OptData:    pxeOptData, // Use pre-decoded constant
+	bootOption, err := efi.NewPxeBootOption(macAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create PXE boot option: %v", err)
 	}
 
 	// Set variables using pre-computed templates
-	requestVarList["Boot0099"] = &efi.EfiVar{
-		Name: boot0099Name,
-		Guid: efi.EFI_GLOBAL_VARIABLE_GUID,
-		Attr: efi.EfiVariableDefault | efi.EfiVariableRuntimeAccess, // Attr 7
-		Data: bootEntry.Bytes(),
-	}
-
+	requestVarList["Boot0099"] = bootOption
 	requestVarList["BootNext"] = bootNextTemplate
 
 	// Return streaming reader directly - no intermediate storage

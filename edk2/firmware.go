@@ -2,6 +2,11 @@ package edk2
 
 import (
 	_ "embed"
+	"fmt"
+	"net"
+
+	"github.com/metal3-community/uefi-firmware-manager/efi"
+	"github.com/metal3-community/uefi-firmware-manager/varstore"
 )
 
 const FirmwareFileName = "RPI_EFI.fd"
@@ -78,20 +83,51 @@ var ConfigTxt []byte
 
 // Files is the mapping to the embedded iPXE binaries.
 var Files = map[string][]byte{
-	FirmwareFileName:                             RpiEfi,
-	"fixup4.dat":                                 Fixup4Dat,
-	"start4.elf":                                 Start4ElfDat,
-	"bcm2711-rpi-4-b.dtb":                        Bcm2711Rpi4BDtb,
-	"bcm2711-rpi-400.dtb":                        Bcm2711Rpi400Dtb,
-	"bcm2711-rpi-cm4.dtb":                        Bcm2711RpiCm4Dtb,
-	"overlays/miniuart-bt.dtbo":                  OverlaysMiniUartBtDtbo,
-	"overlays/upstream-pi4.dtbo":                 OverlaysUpstreamPi4Dtbo,
-	"overlays/rpi-poe-plus.dtbo":                 OverlaysRpiPoePlusDtbo,
-	"firmware/brcm/brcmfmac43455-sdio.bin":       FirmwareBrcmBrcmfmac43455SdioBin,
-	"firmware/brcm/brcmfmac43455-sdio.txt":       FirmwareBrcmBrcmfmac43455SdioTxt,
-	"firmware/brcm/brcmfmac43455-sdio.clm_blob":  FirmwareBrcmBrcmfmac43455SdioClmBlob,
-	"firmware/brcm/brcmfmac43455-sdio.Raspberry": FirmwareBrcmBrcmfmac43455SdioRaspberry,
-	"config.txt":                                 ConfigTxt,
-	"cmdline.txt":                                []byte(""),
-	"bootcfg.txt":                                []byte(""),
+	FirmwareFileName:               RpiEfi,
+	"fixup4.dat":                   Fixup4Dat,
+	"start4.elf":                   Start4ElfDat,
+	"bcm2711-rpi-4-b.dtb":          Bcm2711Rpi4BDtb,
+	"bcm2711-rpi-400.dtb":          Bcm2711Rpi400Dtb,
+	"bcm2711-rpi-cm4.dtb":          Bcm2711RpiCm4Dtb,
+	"miniuart-bt.dtbo":             OverlaysMiniUartBtDtbo,
+	"upstream-pi4.dtbo":            OverlaysUpstreamPi4Dtbo,
+	"rpi-poe-plus.dtbo":            OverlaysRpiPoePlusDtbo,
+	"brcmfmac43455-sdio.bin":       FirmwareBrcmBrcmfmac43455SdioBin,
+	"brcmfmac43455-sdio.txt":       FirmwareBrcmBrcmfmac43455SdioTxt,
+	"brcmfmac43455-sdio.clm_blob":  FirmwareBrcmBrcmfmac43455SdioClmBlob,
+	"brcmfmac43455-sdio.Raspberry": FirmwareBrcmBrcmfmac43455SdioRaspberry,
+	"config.txt":                   ConfigTxt,
+	"cmdline.txt":                  []byte(""),
+	"bootcfg.txt":                  []byte(""),
+}
+
+func Read(macAddr net.HardwareAddr) ([]byte, error) {
+	// Use cached varstore to avoid repeated parsing
+	vs, err := varstore.New(RpiEfi)
+	if err != nil {
+		return nil, err
+	}
+
+	vl, err := vs.GetVarList()
+	if err != nil {
+		return nil, err
+	}
+
+	bootOption, err := efi.NewPxeBootOption(macAddr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create PXE boot option: %v", err)
+	}
+
+	bootNextTemplate := &efi.EfiVar{
+		Name: efi.FromString("BootNext"),
+		Guid: efi.EFI_GLOBAL_VARIABLE_GUID,
+		Attr: efi.EfiVariableDefault | efi.EfiVariableRuntimeAccess,
+		Data: []byte{0x99, 0x00},
+	}
+
+	// Set variables using pre-computed templates
+	vl["Boot0099"] = bootOption
+	vl["BootNext"] = bootNextTemplate
+
+	return vs.ReadAll(vl)
 }

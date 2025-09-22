@@ -84,6 +84,15 @@ func (vs *Edk2VarStore) ReadBytes(varlist efi.EfiVarList) (io.Reader, error) {
 	return bytes.NewReader(blob), nil
 }
 
+func (vs *Edk2VarStore) ReadAll(varlist efi.EfiVarList) ([]byte, error) {
+	blob, err := vs.bytesVarStore(varlist)
+	if err != nil {
+		vs.Logger.Error(err, "failed to convert varlist to bytes")
+		return nil, err
+	}
+	return blob, nil
+}
+
 func (vs *Edk2VarStore) WriteVarStore(filename string, varlist efi.EfiVarList) error {
 	vs.Logger.Info("writing raw edk2 varstore to %s", filename)
 	blob, err := vs.bytesVarStore(varlist)
